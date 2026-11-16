@@ -1,0 +1,49 @@
+# Architecture
+
+```
+ readings.csv ──► Replayer ──► Broker ──► DigitalTwin ──► StateStore ──► Dashboard
+ (2021–2024)     (SimClock)   (topics      │                (readings,     (Dash, polls
+                               rws/...)    │                 estimates,     the store)
+                                           │                 lab vs pred,
+                                           │                 alerts)
+                                           ├─ SoftSensor        predict / assimilate lab results
+                                           ├─ FeatureBuilder    live window features
+                                           ├─ DriftDetector     lab result vs prediction
+                                           ├─ quality           class probabilities, reuse options
+                                           └─ SamplingPolicy    (exploratory) when to sample
+```
+
+## Packages (`src/rdt/`)
+
+| Package | Role | Status |
+|---|---|---|
+| `config.py` | Typed YAML config (`config/default.yaml`), validates the train/replay split | done |
+| `data/` | CSV loaders; `SensorInfo` catalogue derived from `sensors.csv` | done |
+| `messaging/` | `SensorMessage` (JSON), `Broker` protocol, in-memory broker with MQTT wildcards | in-memory done, MQTT stub |
+| `replay/` | `SimClock` (speed factor or as-fast-as-possible) and `Replayer` | done |
+| `twin/network.py` | Representation model: stations, reaches | structure done, flux propagation TODO |
+| `twin/twin.py` | Orchestrator: routes messages, compares lab vs prediction, assimilates, estimates | done |
+| `state.py` | `StateStore` protocol + thread-safe in-memory store; the twin/dashboard boundary | done |
+| `features/` | Sensor-window inputs (only those in `softsensor.features`), same code offline and live; verified against `model_table.csv` | done |
+| `softsensor/` | `SoftSensor` contract, `MetalEstimate` (joint log-normal); Kalman (main), ridge_log and persistence (references); `build_table` | done; evaluated in `analysis/04_soft_sensor_evaluation.py`, extra inputs tested in `analysis/05_model_tuning.py` (no gain) |
+| `quality/` | Soil-type correction, class probabilities, reuse applications | stubs (formula documented) |
+| `monitoring/` | Drift detection, evaluation metrics | simple detector + metrics done; CUSUM TODO |
+| `sampling/` | Sampling policies (RL track) | fixed-interval done; RL TODO |
+| `dashboard/` | Dash app + pure plotly figure builders | map, metal series with reference line, scoreboard, sensors, alerts; class panel planned |
+| `runtime.py` | `build_system(cfg)` wires everything | done |
+| `cli.py` | `rdt info`, `rdt run` | done |
+
+## Design rules
+
+1. **One leakage boundary.** Only `runtime.build_system` decides what is training data (`< periods.train_end`) and what is replayed (`>= periods.replay_start`). `SoftSensor.fit` re-checks with `check_no_leakage`.
+2. **Everything in log space, jointly.** Soft sensors return a `MetalEstimate` (mean and covariance of ln concentration for all metals). Intervals, class probabilities and drift scores all derive from it, so any model that fills this contract plugs into the whole twin.
+3. **Predict before assimilate.** When a lab result arrives, the twin first records the prediction made without it (`LabComparison`, drift detector), then updates the model. That's what makes the live evaluation fair.
+4. **Dashboard reads only the `StateStore`.** It never touches the twin, so the twin can later run in a separate process (MQTT + a persistent store) without changing the dashboard.
+5. **Topics come from `sensors.csv`.** The broker can be swapped for MQTT without changing publishers or subscribers.
+
+## Where to start building
+
+- **Soft sensor:** done (Kalman, see `softsensor/kalman.py` docstring). Lab results are streamed after an assumed turnaround (`softsensor.lab_delay_d`); the twin compares each result with its prediction for the sample time made with only the results known then.
+- **Quality:** `quality/classify.py`: correction formula, Monte-Carlo class probabilities, reuse mapping.
+- **Representation model:** what a `Reach` carries (fluxes, travel time); validate against Keizersveer and Kampen.
+- **Dashboard:** class-probability panel, reaches coloured by class.

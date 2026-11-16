@@ -1,0 +1,32 @@
+fit: 462 samples before 2018-01-01, validate: 233 samples 2018-01-01..2021-01-01, lab delay 14 d
+
+  kalman       base    done in   1.5 s
+  kalman       +long   done in   1.3 s
+  kalman       +peaks  done in   1.4 s
+  kalman       +3d     done in   1.5 s
+  kalman       +all    done in   2.6 s
+  ridge_log    base    done in   2.6 s
+  persistence  base    done in   0.7 s
+
+=== Median absolute % error on validation (2018-2020)
+station            eijsden                         lobith                         mean
+metal                   cd    cu    ni    pb    zn     cd    cu   ni    pb    zn      
+model                                                                                 
+kalman | base         24.2  24.6  18.2  14.7  16.4   15.7  12.2  9.3  14.7   8.5  15.8
+kalman | +long        22.3  22.3  17.5  15.3  14.4   17.0  13.5  8.2  16.1  10.0  15.7
+kalman | +peaks       23.9  24.9  17.4  13.9  15.1   14.8  13.2  9.2  14.2  11.5  15.8
+kalman | +3d          27.8  23.4  18.1  16.0  15.2   16.9  13.4  7.6  14.4  11.4  16.4
+kalman | +all         21.6  22.7  15.9  15.5  15.4   16.0  11.1  7.8  14.2  12.7  15.3
+ridge_log | base      28.3  28.3  19.3  16.0  16.4   13.8  11.5  5.8  12.3  10.2  16.2
+persistence | base    36.4  30.2  26.3  21.2  19.2   23.9  17.2  9.8  16.4  16.0  21.7
+
+=== Summary per model (averaged over the 10 station/metal combinations)
+                    median % error  mean |log error|  90% coverage %
+model                                                               
+kalman | base               15.840             0.216          74.915
+kalman | +long              15.656             0.214          74.283
+kalman | +peaks             15.816             0.220          72.339
+kalman | +3d                16.423             0.216          74.805
+kalman | +all               15.300             0.214          74.026
+ridge_log | base            16.181             0.212          76.364
+persistence | base          21.659             0.280          73.306

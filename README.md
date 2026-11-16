@@ -24,4 +24,34 @@ Rijkswaterstaat WaterWebservices (public), 2012–2025: 40 sensors at four stati
 - https://rijkswaterstaatdata.nl/waterdata/
 - https://waterinfo.rws.nl/nav/bulkdownload
 
-Raw data goes in `data/raw/`. The project proposal is `data/raw/Group13_Project_Dataset.docx`.
+The dataset (~185 MB) is **not in git**: get the `dataset` folder from the group's shared drive and put it at `data/raw/dataset/`, so that `data/raw/dataset/Full/readings.csv` exists. `data/raw/dataset/DATASET.md` (tracked) describes the files. The code only reads `Full/`; `Divided/` is the same data split by year. The project proposal is `data/raw/Group13_Project_Dataset.docx`.
+
+## Getting started
+
+Requires Python 3.11+. Put the dataset in place (see Data above), then:
+
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+
+rdt info                              # summarise the dataset
+rdt run                               # replay 2021–2024 at 1 simulated day/s + dashboard on http://127.0.0.1:8050
+rdt run --speed 604800                # 1 simulated week per second
+rdt run --no-dashboard --speed 0      # headless, as fast as possible
+pytest                                # tests
+```
+
+Settings (time split, replay speed, soft-sensor type, stations) are in `config/default.yaml`.
+
+## Project layout
+
+```
+config/          YAML configuration
+src/rdt/         the twin (see docs/ARCHITECTURE.md)
+tests/           pytest suite (synthetic data; real-data checks skip if the dataset is absent)
+analysis/        statistical analysis: 01 correlations, 02 trend test, 03 model comparison,
+                 04 soft-sensor evaluation (2021–2024), 05 input tuning on a 2018–2020 validation split
+                 (outputs in analysis/results/)
+docs/            architecture notes
+data/raw/        project proposal; dataset goes in data/raw/dataset/ (not in git)
+```

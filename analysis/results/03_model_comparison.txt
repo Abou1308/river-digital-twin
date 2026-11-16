@@ -1,0 +1,229 @@
+Median absolute % error, eval_primary 2021-2024 (rows: station/metal, columns: delay in days)
+
+model         median                    last                   ridge_s                   ridge_sl                   gbm_sl                  
+delay_d           0     7     14    28    0     7     14    28      0     7     14    28       0     7     14    28     0     7     14    28
+station metal                                                                                                                               
+eijsden cd      70.8  70.8  71.4  73.3  19.5  22.8  27.7  31.1    53.9  53.9  54.1  53.6     27.2  30.7  34.1  36.0   27.0  26.7  31.0  31.0
+        cu      34.9  34.9  34.9  34.8  19.4  22.2  25.8  30.1    27.8  27.8  27.9  27.9     18.8  18.9  22.9  22.6   18.1  23.0  24.9  24.5
+        ni      11.9  11.9  11.9  11.9  11.6  14.2  14.0  17.4    14.8  14.8  14.8  14.8      9.7  10.6  13.1  13.7   10.2  10.6  11.7  11.4
+        pb      20.3  20.3  20.3  20.1  14.6  18.6  20.5  20.9    17.8  17.8  17.8  17.8     14.9  15.8  15.8  16.3   13.0  13.3  12.9  14.9
+        zn      18.4  18.4  18.4  18.4  11.8  15.8  16.8  18.6    12.9  12.9  12.9  13.3      9.1  10.6  11.4  12.4    9.4  10.6  10.0  10.2
+lobith  cd      23.7  23.7  23.7  23.7  16.8  16.8  19.0  23.8    14.5  14.5  14.5  14.4     10.8  10.8  12.7  16.3   14.5  14.2  16.2  14.9
+        cu      15.3  15.3  15.3  15.3  11.5  10.9  14.2  15.9    11.0  11.0  11.0  11.0     10.8  10.6  10.4  11.0   11.6  11.6  12.0  12.3
+        ni       7.1   7.1   7.1   7.1   5.7   5.7   6.6   7.0     7.6   7.6   7.6   7.6      6.2   6.2   6.0   7.0    6.9   6.9   7.5   7.2
+        pb      21.5  21.5  21.5  21.5  14.7  14.7  16.3  19.8    12.3  12.3  12.3  12.5     11.3  11.3  11.7  14.3   12.5  12.5  14.4  16.0
+        zn      14.1  14.1  14.1  14.0  12.6  12.6  15.5  15.0    11.0  11.0  11.0  11.0      9.3   9.3   9.4  11.0   11.9  11.2  11.9  11.6
+
+
+ridge_sl (sensors + last known lab value) vs each other model
+diff = other median % error - ridge_sl median % error (positive = ridge_sl better); boot_lo/hi = 95% block-bootstrap interval of diff
+
+--- vs last
+station metal  delay_d   n  ref_median_ape  other_median_ape  diff  boot_lo  boot_hi  dm_stat    dm_p            verdict
+eijsden    cd        0 202            27.2              19.5  -7.7    -13.5     -1.2     -0.4   0.664 no sig. difference
+eijsden    cd        7 202            30.7              22.8  -7.9    -20.1     -2.4     -0.3   0.764 no sig. difference
+eijsden    cd       14 202            34.1              27.7  -6.4    -19.7      2.4      0.5   0.641 no sig. difference
+eijsden    cd       28 202            36.0              31.1  -4.9    -21.7      2.9      1.4   0.168 no sig. difference
+eijsden    cu        0 202            18.8              19.4   0.7     -2.0      3.8      2.9   0.004            DM only
+eijsden    cu        7 202            18.9              22.2   3.3     -1.4      8.5      4.4 1.9e-05            DM only
+eijsden    cu       14 202            22.9              25.8   2.9     -2.5      9.2      3.3   0.001            DM only
+eijsden    cu       28 202            22.6              30.1   7.6      1.2     14.4      4.5 9.9e-06    ridge_sl better
+eijsden    ni        0 202             9.7              11.6   1.9     -0.7      4.7      2.0   0.043            DM only
+eijsden    ni        7 202            10.6              14.2   3.6      0.7      7.2      4.1 7.2e-05    ridge_sl better
+eijsden    ni       14 202            13.1              14.0   1.0     -1.6      3.9      2.6   0.010            DM only
+eijsden    ni       28 202            13.7              17.4   3.6      1.4      6.5      3.6 3.9e-04    ridge_sl better
+eijsden    pb        0 202            14.9              14.6  -0.3     -3.8      3.5      1.7   0.082 no sig. difference
+eijsden    pb        7 202            15.8              18.6   2.8     -4.6      6.6      1.8   0.078 no sig. difference
+eijsden    pb       14 202            15.8              20.5   4.7     -2.3      9.9      2.7   0.007            DM only
+eijsden    pb       28 202            16.3              20.9   4.6     -1.2     11.6      3.6 3.5e-04            DM only
+eijsden    zn        0 202             9.1              11.8   2.8      0.2      6.1      3.6 3.8e-04    ridge_sl better
+eijsden    zn        7 202            10.6              15.8   5.3      0.1      9.0      5.0 1.2e-06    ridge_sl better
+eijsden    zn       14 202            11.4              16.8   5.4      1.9     11.8      5.3 3.3e-07    ridge_sl better
+eijsden    zn       28 202            12.4              18.6   6.3      3.2     11.7      6.0 7.6e-09    ridge_sl better
+ lobith    cd        0 106            10.8              16.8   6.0      2.4      9.0      3.4 8.5e-04    ridge_sl better
+ lobith    cd        7 106            10.8              16.8   6.0      2.3      8.9      3.4   0.001    ridge_sl better
+ lobith    cd       14 106            12.7              19.0   6.3      2.1     13.1      4.4 3.0e-05    ridge_sl better
+ lobith    cd       28 106            16.3              23.8   7.6      0.5     18.4      3.5 6.6e-04    ridge_sl better
+ lobith    cu        0 106            10.8              11.5   0.7     -3.7      4.6      2.5   0.015            DM only
+ lobith    cu        7 106            10.6              10.9   0.2     -3.6      4.7      2.5   0.016            DM only
+ lobith    cu       14 106            10.4              14.2   3.8     -0.1      7.0      3.4 9.6e-04            DM only
+ lobith    cu       28 106            11.0              15.9   4.9     -0.6      8.7      3.3   0.001            DM only
+ lobith    ni        0 106             6.2               5.7  -0.6     -2.4      1.6     -0.2   0.829 no sig. difference
+ lobith    ni        7 106             6.2               5.7  -0.6     -2.5      1.6     -0.2   0.881 no sig. difference
+ lobith    ni       14 106             6.0               6.6   0.6     -2.2      3.1      0.4   0.668 no sig. difference
+ lobith    ni       28 106             7.0               7.0  -0.0     -2.1      2.2      0.4   0.710 no sig. difference
+ lobith    pb        0 106            11.3              14.7   3.4     -0.3      5.8      3.1   0.002            DM only
+ lobith    pb        7 106            11.3              14.7   3.4     -0.6      6.2      3.1   0.003            DM only
+ lobith    pb       14 106            11.7              16.3   4.6      0.2      8.1      3.8 2.1e-04    ridge_sl better
+ lobith    pb       28 106            14.3              19.8   5.5      0.6     12.3      3.5 6.4e-04    ridge_sl better
+ lobith    zn        0 106             9.3              12.6   3.3      0.5      6.3      4.6 1.3e-05    ridge_sl better
+ lobith    zn        7 106             9.3              12.6   3.3      0.2      6.3      4.7 8.4e-06    ridge_sl better
+ lobith    zn       14 106             9.4              15.5   6.0      2.3      9.6      4.9 3.5e-06    ridge_sl better
+ lobith    zn       28 106            11.0              15.0   4.0      1.4     11.5      4.6 1.1e-05    ridge_sl better
+
+--- vs ridge_s
+station metal  delay_d   n  ref_median_ape  other_median_ape  diff  boot_lo  boot_hi  dm_stat    dm_p            verdict
+eijsden    cd        0 202            27.2              53.9  26.8     12.7     42.1      7.1 2.5e-11    ridge_sl better
+eijsden    cd        7 202            30.7              53.9  23.2      9.3     33.4      6.3 1.5e-09    ridge_sl better
+eijsden    cd       14 202            34.1              54.1  20.0      8.9     30.4      6.4 1.1e-09    ridge_sl better
+eijsden    cd       28 202            36.0              53.6  17.7      6.0     26.4      5.2 5.8e-07    ridge_sl better
+eijsden    cu        0 202            18.8              27.8   9.1      2.9     12.9      2.8   0.005    ridge_sl better
+eijsden    cu        7 202            18.9              27.8   9.0      2.7     13.1      1.7   0.094 no sig. difference
+eijsden    cu       14 202            22.9              27.9   5.0     -0.0      8.7      1.3   0.199 no sig. difference
+eijsden    cu       28 202            22.6              27.9   5.3      0.2      9.0      0.9   0.369 no sig. difference
+eijsden    ni        0 202             9.7              14.8   5.1      1.9      7.4      2.7   0.008    ridge_sl better
+eijsden    ni        7 202            10.6              14.8   4.2      0.6      6.3      2.0   0.043    ridge_sl better
+eijsden    ni       14 202            13.1              14.8   1.7     -1.3      3.2      1.8   0.068 no sig. difference
+eijsden    ni       28 202            13.7              14.8   1.0     -2.1      3.2      1.0   0.297 no sig. difference
+eijsden    pb        0 202            14.9              17.8   2.9      0.2      7.2      3.5 6.7e-04    ridge_sl better
+eijsden    pb        7 202            15.8              17.8   2.0     -0.7      5.0      2.6   0.010            DM only
+eijsden    pb       14 202            15.8              17.8   1.9     -1.1      4.5      2.0   0.043            DM only
+eijsden    pb       28 202            16.3              17.8   1.5     -1.0      4.1      1.4   0.175 no sig. difference
+eijsden    zn        0 202             9.1              12.9   3.8      1.2      7.2      2.8   0.005    ridge_sl better
+eijsden    zn        7 202            10.6              12.9   2.4     -0.1      5.1      2.5   0.014            DM only
+eijsden    zn       14 202            11.4              12.9   1.5     -0.7      4.3      1.7   0.090 no sig. difference
+eijsden    zn       28 202            12.4              13.3   1.0     -1.8      3.8      0.9   0.365 no sig. difference
+ lobith    cd        0 106            10.8              14.5   3.7      0.1      6.0      3.4   0.001    ridge_sl better
+ lobith    cd        7 106            10.8              14.5   3.7      0.4      5.7      3.4 9.6e-04    ridge_sl better
+ lobith    cd       14 106            12.7              14.5   1.9     -1.4      4.4      2.0   0.051 no sig. difference
+ lobith    cd       28 106            16.3              14.4  -1.9     -5.5      2.5     -0.2   0.851 no sig. difference
+ lobith    cu        0 106            10.8              11.0   0.2     -2.2      1.6      2.8   0.006            DM only
+ lobith    cu        7 106            10.6              11.0   0.4     -1.9      1.9      3.0   0.003            DM only
+ lobith    cu       14 106            10.4              11.0   0.6     -2.5      3.0      0.7   0.466 no sig. difference
+ lobith    cu       28 106            11.0              11.0  -0.0     -1.5      1.7      1.8   0.074 no sig. difference
+ lobith    ni        0 106             6.2               7.6   1.4      0.1      2.2      4.6 1.4e-05    ridge_sl better
+ lobith    ni        7 106             6.2               7.6   1.4      0.2      2.2      4.5 2.1e-05    ridge_sl better
+ lobith    ni       14 106             6.0               7.6   1.7     -0.2      2.7      4.1 7.8e-05            DM only
+ lobith    ni       28 106             7.0               7.6   0.7     -0.5      1.3      3.2   0.002            DM only
+ lobith    pb        0 106            11.3              12.3   1.1     -0.4      4.0      3.2   0.002            DM only
+ lobith    pb        7 106            11.3              12.3   1.1     -0.4      4.3      3.4   0.001            DM only
+ lobith    pb       14 106            11.7              12.3   0.6     -2.3      3.4      1.1   0.263 no sig. difference
+ lobith    pb       28 106            14.3              12.5  -1.8     -3.6      1.0     -0.2   0.878 no sig. difference
+ lobith    zn        0 106             9.3              11.0   1.7     -0.5      3.5      3.4 9.7e-04            DM only
+ lobith    zn        7 106             9.3              11.0   1.7     -0.5      3.6      3.2   0.002            DM only
+ lobith    zn       14 106             9.4              11.0   1.5     -1.6      4.4      1.0   0.307 no sig. difference
+ lobith    zn       28 106            11.0              11.0   0.0     -2.5      2.9      0.2   0.871 no sig. difference
+
+--- vs gbm_sl
+station metal  delay_d   n  ref_median_ape  other_median_ape  diff  boot_lo  boot_hi  dm_stat  dm_p            verdict
+eijsden    cd        0 202            27.2              27.0  -0.2     -5.9      8.6      1.3 0.189 no sig. difference
+eijsden    cd        7 202            30.7              26.7  -4.0    -14.1      6.8     -0.6 0.551 no sig. difference
+eijsden    cd       14 202            34.1              31.0  -3.1    -13.6      4.8     -0.6 0.580 no sig. difference
+eijsden    cd       28 202            36.0              31.0  -4.9    -16.5      2.9     -1.6 0.116 no sig. difference
+eijsden    cu        0 202            18.8              18.1  -0.7     -5.0      3.2     -0.7 0.502 no sig. difference
+eijsden    cu        7 202            18.9              23.0   4.2     -0.6      8.6      0.4 0.656 no sig. difference
+eijsden    cu       14 202            22.9              24.9   2.0     -3.7      7.8      0.3 0.787 no sig. difference
+eijsden    cu       28 202            22.6              24.5   2.0     -2.3      7.2     -0.7 0.513 no sig. difference
+eijsden    ni        0 202             9.7              10.2   0.5     -1.2      2.4     -0.1 0.948 no sig. difference
+eijsden    ni        7 202            10.6              10.6  -0.1     -2.4      1.6     -0.7 0.493 no sig. difference
+eijsden    ni       14 202            13.1              11.7  -1.4     -3.8      2.4     -0.7 0.514 no sig. difference
+eijsden    ni       28 202            13.7              11.4  -2.3     -4.2      0.6     -2.5 0.015            DM only
+eijsden    pb        0 202            14.9              13.0  -1.9     -3.4      0.1     -0.4 0.655 no sig. difference
+eijsden    pb        7 202            15.8              13.3  -2.5     -5.3     -0.5     -1.6 0.113 no sig. difference
+eijsden    pb       14 202            15.8              12.9  -2.9     -6.8      0.2     -2.5 0.014            DM only
+eijsden    pb       28 202            16.3              14.9  -1.4     -5.4      1.5     -2.4 0.019            DM only
+eijsden    zn        0 202             9.1               9.4   0.3     -2.3      1.8      0.3 0.771 no sig. difference
+eijsden    zn        7 202            10.6              10.6  -0.0     -3.3      2.2     -0.6 0.549 no sig. difference
+eijsden    zn       14 202            11.4              10.0  -1.4     -4.1      1.0     -0.9 0.379 no sig. difference
+eijsden    zn       28 202            12.4              10.2  -2.2     -4.8      0.3     -1.5 0.134 no sig. difference
+ lobith    cd        0 106            10.8              14.5   3.7      0.1      6.3      0.5 0.621 no sig. difference
+ lobith    cd        7 106            10.8              14.2   3.4     -0.2      6.0      0.4 0.715 no sig. difference
+ lobith    cd       14 106            12.7              16.2   3.6     -1.8      7.3      1.0 0.300 no sig. difference
+ lobith    cd       28 106            16.3              14.9  -1.4     -5.9      5.0     -0.5 0.608 no sig. difference
+ lobith    cu        0 106            10.8              11.6   0.8     -2.9      4.1      1.7 0.095 no sig. difference
+ lobith    cu        7 106            10.6              11.6   1.0     -2.5      4.1      1.7 0.088 no sig. difference
+ lobith    cu       14 106            10.4              12.0   1.6     -1.9      4.8      1.5 0.136 no sig. difference
+ lobith    cu       28 106            11.0              12.3   1.3     -1.0      3.5      1.5 0.145 no sig. difference
+ lobith    ni        0 106             6.2               6.9   0.7     -0.7      2.0      0.8 0.419 no sig. difference
+ lobith    ni        7 106             6.2               6.9   0.7     -0.7      1.9      0.8 0.446 no sig. difference
+ lobith    ni       14 106             6.0               7.5   1.5     -1.1      2.9      1.0 0.324 no sig. difference
+ lobith    ni       28 106             7.0               7.2   0.2     -1.5      2.1      0.2 0.874 no sig. difference
+ lobith    pb        0 106            11.3              12.5   1.3     -2.4      4.2      0.4 0.709 no sig. difference
+ lobith    pb        7 106            11.3              12.5   1.3     -2.6      4.5      0.4 0.692 no sig. difference
+ lobith    pb       14 106            11.7              14.4   2.6     -1.5      4.4      0.3 0.729 no sig. difference
+ lobith    pb       28 106            14.3              16.0   1.7     -3.1      6.7      0.8 0.414 no sig. difference
+ lobith    zn        0 106             9.3              11.9   2.6     -0.7      5.9      2.0 0.053 no sig. difference
+ lobith    zn        7 106             9.3              11.2   1.9     -0.9      5.5      1.9 0.057 no sig. difference
+ lobith    zn       14 106             9.4              11.9   2.5     -0.2      5.7      2.3 0.024            DM only
+ lobith    zn       28 106            11.0              11.6   0.6     -1.5      4.6      0.9 0.365 no sig. difference
+
+--- vs median
+station metal  delay_d   n  ref_median_ape  other_median_ape  diff  boot_lo  boot_hi  dm_stat    dm_p            verdict
+eijsden    cd        0 202            27.2              70.8  43.6     20.8     74.1      7.0 4.4e-11    ridge_sl better
+eijsden    cd        7 202            30.7              70.8  40.0     16.5     66.4      6.0 7.2e-09    ridge_sl better
+eijsden    cd       14 202            34.1              71.4  37.3     16.6     63.7      5.3 3.8e-07    ridge_sl better
+eijsden    cd       28 202            36.0              73.3  37.4     13.0     63.7      4.9 2.2e-06    ridge_sl better
+eijsden    cu        0 202            18.8              34.9  16.2      9.3     24.6      5.4 2.3e-07    ridge_sl better
+eijsden    cu        7 202            18.9              34.9  16.0      9.9     24.2      4.5 1.1e-05    ridge_sl better
+eijsden    cu       14 202            22.9              34.9  12.0      5.6     20.2      4.0 8.2e-05    ridge_sl better
+eijsden    cu       28 202            22.6              34.8  12.3      6.3     19.6      4.0 9.5e-05    ridge_sl better
+eijsden    ni        0 202             9.7              11.9   2.2     -1.1      6.9      2.3   0.022            DM only
+eijsden    ni        7 202            10.6              11.9   1.2     -2.1      5.6      1.8   0.068 no sig. difference
+eijsden    ni       14 202            13.1              11.9  -1.2     -4.4      3.0      1.5   0.130 no sig. difference
+eijsden    ni       28 202            13.7              11.9  -1.9     -4.5      2.9      1.1   0.269 no sig. difference
+eijsden    pb        0 202            14.9              20.3   5.4      2.4      9.8      4.6 7.7e-06    ridge_sl better
+eijsden    pb        7 202            15.8              20.3   4.5      1.3      8.0      3.8 1.8e-04    ridge_sl better
+eijsden    pb       14 202            15.8              20.3   4.5      0.5      8.2      3.4 7.9e-04    ridge_sl better
+eijsden    pb       28 202            16.3              20.1   3.8      0.7      7.7      3.2   0.001    ridge_sl better
+eijsden    zn        0 202             9.1              18.4   9.3      5.4     14.3      5.7 5.2e-08    ridge_sl better
+eijsden    zn        7 202            10.6              18.4   7.8      4.1     12.5      5.7 3.9e-08    ridge_sl better
+eijsden    zn       14 202            11.4              18.4   7.0      3.7     11.9      5.2 4.8e-07    ridge_sl better
+eijsden    zn       28 202            12.4              18.4   6.0      2.8     11.1      5.1 7.4e-07    ridge_sl better
+ lobith    cd        0 106            10.8              23.7  12.9      8.4     17.0      4.1 7.0e-05    ridge_sl better
+ lobith    cd        7 106            10.8              23.7  12.9      8.6     16.8      4.1 7.3e-05    ridge_sl better
+ lobith    cd       14 106            12.7              23.7  11.1      5.7     16.7      3.3   0.001    ridge_sl better
+ lobith    cd       28 106            16.3              23.7   7.5      1.6     13.8      2.4   0.017    ridge_sl better
+ lobith    cu        0 106            10.8              15.3   4.5      0.7      7.8      4.4 2.3e-05    ridge_sl better
+ lobith    cu        7 106            10.6              15.3   4.7      1.0      8.0      4.5 2.1e-05    ridge_sl better
+ lobith    cu       14 106            10.4              15.3   4.9      0.2      9.1      3.3   0.001    ridge_sl better
+ lobith    cu       28 106            11.0              15.3   4.3      1.2      7.1      3.8 2.3e-04    ridge_sl better
+ lobith    ni        0 106             6.2               7.1   0.8     -1.0      3.1      2.2   0.028            DM only
+ lobith    ni        7 106             6.2               7.1   0.8     -1.0      3.1      2.2   0.031            DM only
+ lobith    ni       14 106             6.0               7.1   1.1     -1.4      3.5      2.0   0.046            DM only
+ lobith    ni       28 106             7.0               7.1   0.1     -1.7      2.3      1.1   0.286 no sig. difference
+ lobith    pb        0 106            11.3              21.5  10.2      6.4     14.4      4.7 8.5e-06    ridge_sl better
+ lobith    pb        7 106            11.3              21.5  10.2      6.4     14.5      4.7 9.5e-06    ridge_sl better
+ lobith    pb       14 106            11.7              21.5   9.7      4.5     14.6      3.6 5.7e-04    ridge_sl better
+ lobith    pb       28 106            14.3              21.5   7.2      2.3     12.3      3.0   0.003    ridge_sl better
+ lobith    zn        0 106             9.3              14.1   4.8      2.0      9.4      4.1 9.3e-05    ridge_sl better
+ lobith    zn        7 106             9.3              14.1   4.8      2.0      9.6      4.1 9.3e-05    ridge_sl better
+ lobith    zn       14 106             9.4              14.1   4.7      1.5      9.7      3.1   0.002    ridge_sl better
+ lobith    zn       28 106            11.0              14.0   3.1     -0.3      9.0      3.0   0.004            DM only
+
+Summary: count of station/metal combinations (out of 10) per verdict
+verdict          DM only  no sig. difference  ridge_sl better
+vs      delay_d                                              
+gbm_sl  0              0                  10                0
+        7              0                  10                0
+        14             2                   8                0
+        28             2                   8                0
+last    0              4                   3                3
+        7              3                   3                4
+        14             4                   2                4
+        28             2                   2                6
+median  0              2                   0                8
+        7              1                   1                8
+        14             1                   1                8
+        28             1                   2                7
+ridge_s 0              3                   0                7
+        7              5                   1                4
+        14             2                   7                1
+        28             1                   8                1
+
+Holm-corrected (10 station/metal tests per comparison and delay), DM test:
+  vs gbm_sl   delay  0 d: 0 / 10 significant
+  vs gbm_sl   delay  7 d: 0 / 10 significant
+  vs gbm_sl   delay 14 d: 0 / 10 significant
+  vs gbm_sl   delay 28 d: 0 / 10 significant
+  vs last     delay  0 d: 5 / 10 significant
+  vs last     delay  7 d: 6 / 10 significant
+  vs last     delay 14 d: 8 / 10 significant
+  vs last     delay 28 d: 8 / 10 significant
+  vs median   delay  0 d: 10 / 10 significant
+  vs median   delay  7 d: 8 / 10 significant
+  vs median   delay 14 d: 8 / 10 significant
+  vs median   delay 28 d: 8 / 10 significant
+  vs ridge_s  delay  0 d: 10 / 10 significant
+  vs ridge_s  delay  7 d: 8 / 10 significant
+  vs ridge_s  delay 14 d: 2 / 10 significant
+  vs ridge_s  delay 28 d: 2 / 10 significant

@@ -1,0 +1,58 @@
+# Default configuration for the River Digital Twin.
+# Relative paths are resolved against the project root (the parent of this folder).
+
+paths:
+  data_dir: data/raw/dataset/Full
+
+# Time split. The soft sensor may only be fitted on data strictly before `train_end`;
+# the replay streams data from `replay_start` onward. Keep replay_start >= train_end.
+# These match the `period` column in model_table.csv.
+periods:
+  train_end: "2021-01-01T00:00:00Z"
+  replay_start: "2021-01-01T00:00:00Z"
+  replay_end: "2025-01-01T00:00:00Z"      # eval_primary; 2025 is eval_secondary
+
+replay:
+  speed: 86400          # simulated seconds per wall-clock second (86400 = 1 day/s); null = as fast as possible
+  tiers: [core]         # sensor tiers from sensors.csv to stream: core, optional
+
+broker:
+  kind: memory          # memory | mqtt
+  mqtt:
+    host: localhost
+    port: 1883
+
+twin:
+  estimate_interval_h: 6      # how often (simulated time) the soft sensor produces a new estimate
+  history_maxlen: 100000      # readings kept per sensor in the in-memory state store
+
+softsensor:
+  kind: kalman                # kalman | ridge_log | persistence
+  metals: [cd, cu, ni, pb, zn]
+  # Sensor inputs (see rdt/features/windows.py): <turb|q|spm>_<mean|max>_<24h|7d>, doy_sin, doy_cos.
+  # Discharge (strongest at Lobith) and suspended matter / turbidity (strongest at Eijsden), from the
+  # training-period correlation analysis (analysis/01_correlations.py), plus the seasonal cycle.
+  features: [q_mean_7d, q_mean_24h, turb_mean_7d, turb_mean_24h, spm_mean_7d, doy_sin, doy_cos]
+  # Lab turnaround is unknown (not in the dataset): assumption, tested at several values.
+  lab_delay_d: 14             # used in the live replay
+  eval_lab_delays_d: [0, 7, 14, 28]
+  # Run alongside the twin and shown on the dashboard scoreboard: "persistence" = last lab value known,
+  # i.e. what you would have without the twin. null to switch off.
+  reference: persistence
+
+# Station coordinates are approximate (WGS84) - verify before using for anything but display.
+stations:
+  eijsden:     {river: Maas,             lat: 50.777, lon: 5.702, role: modelled}
+  lobith:      {river: Rijn,             lat: 51.862, lon: 6.110, role: modelled}
+  keizersveer: {river: Bergsche Maas,    lat: 51.717, lon: 4.890, role: downstream}
+  kampen:      {river: IJssel,           lat: 52.555, lon: 5.912, role: downstream}
+
+# Reaches of the representation model (upstream station -> downstream station).
+reaches:
+  - {id: maas_eijsden_keizersveer, river: Maas, upstream: eijsden, downstream: keizersveer}
+  - {id: rijn_lobith_kampen,       river: Rijn, upstream: lobith,  downstream: kampen}
+
+dashboard:
+  host: 127.0.0.1
+  port: 8050
+  refresh_ms: 1000

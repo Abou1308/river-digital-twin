@@ -13,3 +13,15 @@ venv/
 
 # Office lock files
 ~$*
+
+# Build / packaging
+*.egg-info/
+.pytest_cache/
+
+# Course material (not ours to publish)
+course/
+
+# Dataset (~185 MB, too large for git): shared separately, see README "Data".
+# Only the description file is tracked.
+data/raw/dataset/*
+!data/raw/dataset/DATASET.md
