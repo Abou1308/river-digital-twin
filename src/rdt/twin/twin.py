@@ -9,6 +9,7 @@ from rdt.data.schema import SensorInfo, SensorKind
 from rdt.features.windows import FeatureBuilder
 from rdt.messaging.broker import Broker
 from rdt.messaging.messages import SensorMessage
+from rdt.monitoring.classes import ClassEvaluator
 from rdt.monitoring.drift import DriftDetector
 from rdt.softsensor.base import NotReadyError, SoftSensor
 from rdt.softsensor.estimate import MetalEstimate
@@ -31,7 +32,9 @@ class DigitalTwin:
          soft sensor assimilate it at the sample time;
       4. if it is a lab lutum / organic-carbon result: pass it to the soft sensor (needed for the
          soil-type correction of the quality class);
-      5. every `estimate_interval` of simulated time per station, produce a fresh estimate.
+      5. once all metals, lutum and organic carbon of a lab sample are in: compare the sample's quality
+         class with the class probabilities predicted for the sample time (`class_evaluator`);
+      6. every `estimate_interval` of simulated time per station, produce a fresh estimate.
     """
 
     def __init__(
@@ -44,6 +47,7 @@ class DigitalTwin:
         drift_detector: DriftDetector | None = None,
         estimate_interval: timedelta = timedelta(hours=6),
         reference: SoftSensor | None = None,
+        class_evaluator: ClassEvaluator | None = None,
     ) -> None:
         """`reference`: a second soft sensor run alongside (same messages, same lab delays), only so
         the dashboard can show how the twin compares with it live. It does not affect the twin."""
@@ -55,6 +59,7 @@ class DigitalTwin:
         self.drift_detector = drift_detector
         self.estimate_interval = estimate_interval
         self.reference = reference
+        self.class_evaluator = class_evaluator
         self._modelled = {s.id for s in network.modelled_stations()}
         self._last_estimate: dict[str, datetime] = {}
 
@@ -77,8 +82,10 @@ class DigitalTwin:
             self.feature_builder.observe(msg, info.station, info.kind.value)
         elif info.kind is SensorKind.SPM_METAL:
             self._handle_lab_metal(info, msg)
+            self._collect_class_sample(info.station, msg, info.metal)
         elif info.kind is SensorKind.SPM_PROPERTY:
             self.soft_sensor.assimilate_property(info.station, msg.time_utc, info.prop, msg.value, msg.censored)
+            self._collect_class_sample(info.station, msg, info.prop)
         self._maybe_estimate(info.station, now)
 
     def _handle_lab_metal(self, info: SensorInfo, msg: SensorMessage) -> None:
@@ -108,6 +115,20 @@ class DigitalTwin:
             if s is not None:
                 s.assimilate(station, t, metal, msg.value, msg.censored, features=feats,
                              available_utc=msg.arrival_utc)
+
+    def _collect_class_sample(self, station: str, msg: SensorMessage, key: str) -> None:
+        if self.class_evaluator is None:
+            return
+        sample = self.class_evaluator.observe(station, msg.time_utc, key, msg.value)
+        if sample is None:
+            return
+        t = msg.time_utc
+        feats = self._features(station, t)
+        prior = self._predict(station, t, feats, as_of=t)
+        if prior is None:
+            return
+        ref = self._predict(station, t, feats, as_of=t, sensor=self.reference) if self.reference else None
+        self.store.record_class_comparison(self.class_evaluator.compare(station, t, sample, prior, ref))
 
     def _maybe_estimate(self, station: str, t: datetime) -> None:
         last = self._last_estimate.get(station)

@@ -42,11 +42,23 @@ class LabComparison:
     reference_median: float | None = None   # what the reference model (last lab value) predicted
 
 
+@dataclass(frozen=True)
+class ClassComparison:
+    """A lab sample's quality class next to the class probabilities predicted for its sample time."""
+
+    time_utc: datetime
+    station: str
+    observed: str                                   # one of rdt.quality.QUALITY_CLASSES
+    probabilities: dict[str, float]                 # {class: probability}, from the twin
+    reference_probabilities: dict[str, float] | None = None
+
+
 class StateStore(Protocol):
     def record_reading(self, msg: SensorMessage) -> None: ...
     def record_estimate(self, est: MetalEstimate) -> None: ...
     def record_reference_estimate(self, est: MetalEstimate) -> None: ...
     def record_comparison(self, cmp: LabComparison) -> None: ...
+    def record_class_comparison(self, cmp: ClassComparison) -> None: ...
     def record_alert(self, alert: Alert) -> None: ...
     def set_sim_time(self, t: datetime) -> None: ...
 
@@ -56,6 +68,7 @@ class StateStore(Protocol):
     def estimates(self, station: str) -> list[MetalEstimate]: ...
     def reference_estimates(self, station: str) -> list[MetalEstimate]: ...
     def comparisons(self, station: str) -> list[LabComparison]: ...
+    def class_comparisons(self, station: str) -> list[ClassComparison]: ...
     def alerts(self, limit: int = 50) -> list[Alert]: ...
 
 
@@ -68,6 +81,7 @@ class InMemoryStateStore:
         self._estimates: dict[str, deque[MetalEstimate]] = defaultdict(lambda: deque(maxlen=history_maxlen))
         self._ref_estimates: dict[str, deque[MetalEstimate]] = defaultdict(lambda: deque(maxlen=history_maxlen))
         self._comparisons: dict[str, list[LabComparison]] = defaultdict(list)
+        self._class_comparisons: dict[str, list[ClassComparison]] = defaultdict(list)
         self._alerts: deque[Alert] = deque(maxlen=1000)
         self._sim_time: datetime | None = None
 
@@ -87,6 +101,10 @@ class InMemoryStateStore:
     def record_comparison(self, cmp: LabComparison) -> None:
         with self._lock:
             self._comparisons[cmp.station].append(cmp)
+
+    def record_class_comparison(self, cmp: ClassComparison) -> None:
+        with self._lock:
+            self._class_comparisons[cmp.station].append(cmp)
 
     def record_alert(self, alert: Alert) -> None:
         with self._lock:
@@ -131,6 +149,10 @@ class InMemoryStateStore:
     def comparisons(self, station: str) -> list[LabComparison]:
         with self._lock:
             return list(self._comparisons.get(station, ()))
+
+    def class_comparisons(self, station: str) -> list[ClassComparison]:
+        with self._lock:
+            return list(self._class_comparisons.get(station, ()))
 
     def alerts(self, limit: int = 50) -> list[Alert]:
         with self._lock:

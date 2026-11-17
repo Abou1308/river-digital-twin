@@ -40,6 +40,11 @@ softsensor:
   # i.e. what you would have without the twin. null to switch off.
   reference: persistence
 
+quality:
+  # The lab reports organic carbon; the soil-type correction needs organic matter. 1.724 is the
+  # conventional van Bemmelen factor (as in the MVP); 2.0 shifts class shares by about 1 percentage point.
+  om_per_corg: 1.724
+
 # Station coordinates are approximate (WGS84) - verify before using for anything but display.
 stations:
   eijsden:     {river: Maas,             lat: 50.777, lon: 5.702, role: modelled}

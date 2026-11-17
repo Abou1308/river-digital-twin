@@ -26,8 +26,8 @@
 | `state.py` | `StateStore` protocol + thread-safe in-memory store; the twin/dashboard boundary | done |
 | `features/` | Sensor-window inputs (only those in `softsensor.features`), same code offline and live; verified against `model_table.csv` | done |
 | `softsensor/` | `SoftSensor` contract, `MetalEstimate` (joint log-normal); Kalman (main), ridge_log and persistence (references); `build_table` | done; evaluated in `analysis/04_soft_sensor_evaluation.py`, extra inputs tested in `analysis/05_model_tuning.py` (no gain) |
-| `quality/` | Soil-type correction, class probabilities, reuse applications | stubs (formula documented) |
-| `monitoring/` | Drift detection, evaluation metrics | simple detector + metrics done; CUSUM TODO |
+| `quality/` | Soil-type correction, class probabilities, reuse applications | correction and class probabilities done (tests in `tests/test_quality.py`); reuse applications TODO |
+| `monitoring/` | Drift detection, evaluation metrics, class evaluation (`ClassComparison` per complete lab sample, twin and reference; Brier, accuracy, confusion matrix) | simple detector + metrics + class evaluation done; CUSUM TODO |
 | `sampling/` | Sampling policies (RL track) | fixed-interval done; RL TODO |
 | `dashboard/` | Dash app + pure plotly figure builders | map, metal series with reference line, scoreboard, sensors, alerts; class panel planned |
 | `runtime.py` | `build_system(cfg)` wires everything | done |
@@ -44,6 +44,6 @@
 ## Where to start building
 
 - **Soft sensor:** done (Kalman, see `softsensor/kalman.py` docstring). Lab results are streamed after an assumed turnaround (`softsensor.lab_delay_d`); the twin compares each result with its prediction for the sample time made with only the results known then.
-- **Quality:** `quality/classify.py`: correction formula, Monte-Carlo class probabilities, reuse mapping.
+- **Quality:** `quality/classify.py`: reuse mapping (`reuse_applications`).
 - **Representation model:** what a `Reach` carries (fluxes, travel time); validate against Keizersveer and Kampen.
 - **Dashboard:** class-probability panel, reaches coloured by class.

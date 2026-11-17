@@ -21,6 +21,20 @@ def _info(args: argparse.Namespace) -> None:
     print(table.groupby(["station", "period"])["sample_time_utc"].agg(["count", "min", "max"]).to_string())
 
 
+def _print_class_scores(comparisons: list) -> None:
+    from rdt.monitoring.classes import score_class_comparisons
+
+    if not comparisons:
+        print("   classes: no complete lab samples")
+        return
+    for name, ref in (("twin", False), ("reference", True)):
+        if ref and comparisons[0].reference_probabilities is None:
+            continue
+        s = score_class_comparisons(comparisons, reference=ref)
+        print(f"   classes ({name}): n={s['n']} Brier={s['brier']:.3f} accuracy={s['accuracy']:.0%} "
+              f"confusion (rows observed, columns predicted)={s['confusion'].tolist()}")
+
+
 def _run(args: argparse.Namespace) -> None:
     from rdt.runtime import build_system
 
@@ -38,6 +52,7 @@ def _run(args: argparse.Namespace) -> None:
             from rdt.dashboard.views import scoreboard_rows
             for row in scoreboard_rows(system.store.comparisons(station), cfg.softsensor.metals):
                 print("   " + " | ".join(f"{k}: {v}" for k, v in row.items()))
+            _print_class_scores(system.store.class_comparisons(station))
         print(f"Alerts: {len(system.store.alerts(limit=10_000))}")
         return
 

@@ -98,3 +98,41 @@ def test_reference_scoreboard(cfg, catalog, train_table):
     rows = scoreboard_rows(cmp, METALS)
     assert [r["verdict"] for r in rows] == ["about equal"] * len(METALS)
     assert len(running_error(cmp, "cd").data) == 2
+
+
+def test_class_comparison_per_complete_sample(cfg, catalog, train_table):
+    """Each lab sample with all metals, lutum and organic carbon gives one class comparison, scored
+    for the twin and the reference model; a sample without organic carbon gives none."""
+    from rdt.monitoring.classes import ClassEvaluator, score_class_comparisons
+    from rdt.quality import QUALITY_CLASSES
+
+    limits = pd.DataFrame(
+        [(m.capitalize(), c, lo, hi) for m in METALS
+         for c, lo, hi in zip(QUALITY_CLASSES, [float("nan"), 1, 1000, 5000], [1, 1000, 5000, float("nan")])],
+        columns=["parameter", "class_en", "lower_exclusive", "upper_inclusive"])
+    soil = pd.DataFrame([(m.capitalize(), 1, 0, 0, 2, float("nan"), 2, float("nan"), 25, 10) for m in METALS],
+                        columns=["parameter", "A", "B", "C", "lutum_min_pct", "lutum_max_pct", "om_min_pct",
+                                 "om_max_pct", "standard_lutum_pct", "standard_om_pct"]).set_index("parameter")
+    sensors = [PersistenceSoftSensor(METALS) for _ in range(2)]
+    for s in sensors:
+        s.fit(train_table, START)
+    store = InMemoryStateStore()
+    broker = InMemoryBroker()
+    twin = DigitalTwin(RiverNetwork.from_config(cfg, catalog), catalog, sensors[0], store,
+                       reference=sensors[1], class_evaluator=ClassEvaluator(METALS, limits, soil, 1.724, n_draws=200))
+    twin.attach(broker)
+    r = _readings()
+    t3, t10 = (START + pd.Timedelta(days=d, minutes=30) for d in (3, 10))
+    props = [(t3, "lobith_spm_lutum", 20.0, False, "00"), (t3, "lobith_spm_corg", 3.0, False, "00"),
+             (t10, "lobith_spm_lutum", 20.0, False, "00")]
+    r = pd.concat([r, pd.DataFrame(props, columns=r.columns)]).sort_values("time_utc", kind="stable")
+    Replayer(r.reset_index(drop=True), catalog, broker, SimClock(START, speed=None)).run()
+
+    (cmp,) = store.class_comparisons("lobith")
+    assert cmp.time_utc == t3.to_pydatetime()
+    # every metal and its prediction lies between 1 and 1000 mg/kg: slightly contaminated
+    assert cmp.observed == "slightly contaminated"
+    assert sum(cmp.probabilities.values()) == pytest.approx(1.0)
+    for ref in (False, True):
+        s = score_class_comparisons(store.class_comparisons("lobith"), reference=ref)
+        assert s["n"] == 1 and s["accuracy"] == 1.0

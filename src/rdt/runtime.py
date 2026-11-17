@@ -9,11 +9,19 @@ from datetime import timedelta
 import pandas as pd
 
 from rdt.config import Config
-from rdt.data import load_model_table, load_readings, load_regulatory_limits, load_sensors, sensor_catalog
+from rdt.data import (
+    load_model_table,
+    load_readings,
+    load_regulatory_limits,
+    load_sensors,
+    load_soil_correction,
+    sensor_catalog,
+)
 from rdt.data.schema import SensorInfo, SensorKind
 from rdt.features import LiveFeatureBuilder, max_window
 from rdt.messaging import Broker, make_broker
 from rdt.monitoring import IntervalExceedanceDetector
+from rdt.monitoring.classes import ClassEvaluator
 from rdt.replay import Replayer, SimClock
 from rdt.softsensor import SoftSensor, build_table, make_soft_sensor
 from rdt.state import InMemoryStateStore
@@ -78,6 +86,7 @@ def build_system(cfg: Config, speed: float | None | str = "config") -> System:
     log.info("Loaded %d readings to replay from %d sensors (lab turnaround %.0f d)",
              len(readings), len(streamed), sc.lab_delay_d)
 
+    limits = load_regulatory_limits(cfg.data_dir)
     store = InMemoryStateStore(history_maxlen=cfg.twin.history_maxlen)
     broker = make_broker(cfg.broker)
     twin = DigitalTwin(
@@ -89,6 +98,8 @@ def build_system(cfg: Config, speed: float | None | str = "config") -> System:
         drift_detector=IntervalExceedanceDetector(),
         estimate_interval=timedelta(hours=cfg.twin.estimate_interval_h),
         reference=reference,
+        class_evaluator=ClassEvaluator(sc.metals, limits, load_soil_correction(cfg.data_dir),
+                                       cfg.quality.om_per_corg),
     )
     twin.attach(broker)
 
@@ -99,7 +110,7 @@ def build_system(cfg: Config, speed: float | None | str = "config") -> System:
         cfg=cfg,
         catalog=catalog,
         network=network,
-        limits=load_regulatory_limits(cfg.data_dir),
+        limits=limits,
         store=store,
         broker=broker,
         soft_sensor=soft_sensor,

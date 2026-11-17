@@ -55,6 +55,11 @@ class SoftSensorConfig:
 
 
 @dataclass(frozen=True)
+class QualityConfig:
+    om_per_corg: float                  # organic matter / organic carbon, for the soil-type correction
+
+
+@dataclass(frozen=True)
 class DashboardConfig:
     host: str
     port: int
@@ -69,6 +74,7 @@ class Config:
     broker: BrokerConfig
     twin: TwinConfig
     softsensor: SoftSensorConfig
+    quality: QualityConfig
     stations: dict[str, dict[str, Any]]
     reaches: list[dict[str, Any]]
     dashboard: DashboardConfig
@@ -103,6 +109,7 @@ def load_config(path: str | Path | None = None) -> Config:
             eval_lab_delays_d=tuple(raw["softsensor"]["eval_lab_delays_d"]),
             reference=raw["softsensor"].get("reference"),
         ),
+        quality=QualityConfig(om_per_corg=float(raw["quality"]["om_per_corg"])),
         stations=raw["stations"],
         reaches=raw.get("reaches", []),
         dashboard=DashboardConfig(**raw["dashboard"]),
