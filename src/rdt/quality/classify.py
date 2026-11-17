@@ -71,6 +71,20 @@ def assign_class(concentration: float | np.ndarray, limits: pd.DataFrame) -> np.
     return np.searchsorted(uppers, np.asarray(concentration, float), side="left")
 
 
+def sample_class(
+    concentrations: dict[str, float],
+    limits: pd.DataFrame,
+    soil_correction: pd.DataFrame,
+    lutum_pct: float,
+    om_pct: float,
+) -> int:
+    """Index into QUALITY_CLASSES of a measured sample: the worst class over its metals ({'cd': mg/kg, ...})."""
+    return max(
+        int(assign_class(value, corrected_limits(limits, soil_correction, metal.capitalize(), lutum_pct, om_pct)))
+        for metal, value in concentrations.items()
+    )
+
+
 def _class_draws(
     estimate: MetalEstimate,
     limits: pd.DataFrame,

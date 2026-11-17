@@ -17,8 +17,29 @@ def interval_coverage(observed: np.ndarray, lower: np.ndarray, upper: np.ndarray
     return float(np.mean((observed >= np.asarray(lower)) & (observed <= np.asarray(upper))))
 
 
-# TODO: class-level metrics once quality.classify is implemented, e.g. accuracy of the most likely
-# class, Brier score / log loss of the class probabilities, reliability (calibration) curves.
+def brier_score(probabilities: np.ndarray, observed: np.ndarray) -> float:
+    """Multi-class Brier score: mean squared distance between the predicted class probabilities
+    (shape (n, n_classes)) and the observed class as a one-hot vector. 0 is perfect; 2 is certain and wrong."""
+    p = np.asarray(probabilities, float)
+    onehot = np.eye(p.shape[1])[np.asarray(observed, int)]
+    return float(np.mean(np.sum((p - onehot) ** 2, axis=1)))
+
+
+def class_scores(probabilities: np.ndarray, observed: np.ndarray) -> dict:
+    """Brier score, accuracy of the most likely class, confusion matrix (rows observed, columns
+    predicted) and observed class shares, for class indices `observed` (shape (n,))."""
+    p, obs = np.asarray(probabilities, float), np.asarray(observed, int)
+    k = p.shape[1]
+    pred = p.argmax(axis=1)
+    confusion = np.zeros((k, k), int)
+    np.add.at(confusion, (obs, pred), 1)
+    return {
+        "n": len(obs),
+        "brier": brier_score(p, obs),
+        "accuracy": float(np.mean(pred == obs)),
+        "confusion": confusion,
+        "observed_shares": np.bincount(obs, minlength=k) / len(obs),
+    }
 
 
 # --- significance of differences between models (autocorrelation-aware) ----------------------------

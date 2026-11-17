@@ -3,6 +3,8 @@
 from rdt.monitoring.drift import DriftDetector, IntervalExceedanceDetector
 from rdt.monitoring.evaluation import (
     block_bootstrap_median_diff,
+    brier_score,
+    class_scores,
     diebold_mariano,
     holm_count,
     interval_coverage,
@@ -13,6 +15,8 @@ __all__ = [
     "DriftDetector",
     "IntervalExceedanceDetector",
     "block_bootstrap_median_diff",
+    "brier_score",
+    "class_scores",
     "diebold_mariano",
     "holm_count",
     "interval_coverage",

@@ -7,7 +7,14 @@ import pandas as pd
 import pytest
 
 from rdt.data.schema import METALS
-from rdt.quality import QUALITY_CLASSES, assign_class, class_probabilities, corrected_limits, sample_class_probabilities
+from rdt.quality import (
+    QUALITY_CLASSES,
+    assign_class,
+    class_probabilities,
+    corrected_limits,
+    sample_class,
+    sample_class_probabilities,
+)
 from rdt.softsensor import MetalEstimate
 
 nan = float("nan")
@@ -123,3 +130,9 @@ def test_real_limits_cover_modelled_metals(cfg):
     for metal in METALS:
         uppers = corrected_limits(limits, soil, metal.capitalize(), 25, 10)["upper_inclusive"].to_numpy()[:3]
         assert np.all(np.isfinite(uppers)) and np.all(np.diff(uppers) > 0), metal
+
+
+def test_sample_class_is_worst_metal():
+    # Cd 0.5 is clean, Zn 600 is moderately contaminated (standard soil).
+    assert sample_class({"cd": 0.5, "zn": 600.0}, LIMITS, SOIL, 25, 10) == 2
+    assert sample_class({"cd": 0.5}, LIMITS, SOIL, 25, 10) == 0
