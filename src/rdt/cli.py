@@ -44,7 +44,9 @@ def _run(args: argparse.Namespace) -> None:
     from rdt.dashboard import create_app
 
     system.replayer.start()
-    app = create_app(system.store, system.network, cfg.softsensor.metals, system.limits, cfg.dashboard.refresh_ms)
+    app = create_app(system.store, system.network, cfg.softsensor.metals, system.limits, cfg.dashboard.refresh_ms,
+                     units={sid: info.unit for sid, info in system.catalog.items()},
+                     features=tuple(cfg.softsensor.features))
     app.run(host=cfg.dashboard.host, port=cfg.dashboard.port, debug=False)
 
 

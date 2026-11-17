@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from collections.abc import Callable
+from datetime import date, datetime, time
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -24,6 +25,9 @@ CLASS_COLOURS = {
 
 def network_map(network: RiverNetwork, station_class: dict[str, str | None]) -> go.Figure:
     """Stations as markers coloured by most likely class; reaches as lines.
+
+    Not shown on the dashboard yet: it only becomes useful once it can show the contamination carried
+    along the river (estimated metal levels / fluxes per reach).
 
     TODO: draw reaches along the actual river geometry (e.g. from a GeoJSON) instead of straight lines,
     and colour reaches by their predicted class once the representation model propagates fluxes.
@@ -110,7 +114,7 @@ def metal_timeseries(
         t, med, lo, hi = (list(c) for c in zip(*estimates))
         data.append({"type": "scatter", "x": t + t[::-1], "y": hi + lo[::-1], "fill": "toself",
                      "line": {"width": 0}, "fillcolor": "rgba(92,143,191,0.25)",
-                     "name": f"{int(level * 100)}% interval", "hoverinfo": "skip"})
+                     "name": f"{int(level * 100)}% range for a lab result", "hoverinfo": "skip"})
         data.append({"type": "scatter", "x": t, "y": med, "mode": "lines", "line": {"color": "#2a5d8f"},
                      "name": "twin estimate"})
     if reference:
@@ -137,25 +141,97 @@ def metal_timeseries(
     return {"data": data, "layout": layout}
 
 
-def sensor_timeseries(series: dict[str, list[SensorMessage]], now: datetime | None, days: int = 60) -> Fig:
-    """Recent automatic-sensor data (e.g. discharge, turbidity, SPM), one row per series, shared time axis."""
-    names = list(series) or [""]
-    n = len(names)
-    start = (now - timedelta(days=days)) if now else None
-    gap = 0.06
-    h = (1 - gap * (n - 1)) / n
-    data, layout = [], {"height": 120 + 160 * n, "margin": {"l": 50, "r": 10, "t": 30, "b": 30},
-                        "uirevision": "sensors", "showlegend": False, "annotations": []}
-    for i, name in enumerate(names):
-        k = "" if i == 0 else str(i + 1)
-        msgs = [m for m in series.get(name, []) if start is None or m.time_utc >= start]
-        data.append({"type": "scattergl", "x": [m.time_utc for m in msgs], "y": [m.value for m in msgs],
-                     "mode": "lines", "name": name, "xaxis": f"x{k}", "yaxis": f"y{k}"})
-        top = 1 - i * (h + gap)
-        layout[f"yaxis{k}"] = {"domain": [top - h, top], "anchor": f"x{k}"}
-        layout[f"xaxis{k}"] = {"anchor": f"y{k}", "matches": "x" if i else None, "showticklabels": i == n - 1}
-        layout["annotations"].append({"text": name, "xref": "paper", "yref": "paper", "x": 0.5, "y": top,
-                                      "xanchor": "center", "yanchor": "bottom", "showarrow": False})
+class DailyStats:
+    """Per-day sum, count and max of one sensor stream, updated incrementally: each call re-reads only
+    the readings from the start of the last (still incomplete) day onward, so the cost stays small
+    however long the history is. Readings that arrive later for an already completed day are ignored."""
+
+    def __init__(self) -> None:
+        self._bins: dict[str, dict[date, list[float]]] = {}
+        self._last: dict[str, datetime] = {}
+
+    def get(self, key: str, fetch: Callable[[datetime | None], list[SensorMessage]],
+            keep: Callable[[float], bool] = lambda v: True) -> dict[date, list[float]]:
+        """`fetch(since)` returns readings with time >= since (all if None); `keep` filters values
+        (e.g. the twin's arrival rules). Returns {day: [sum, count, max]}."""
+        bins = self._bins.setdefault(key, {})
+        since = self._last.get(key)
+        msgs = fetch(since)
+        if msgs:
+            fresh: dict[date, list[float]] = {}
+            for m in msgs:
+                if keep(m.value):
+                    b = fresh.setdefault(m.time_utc.date(), [0.0, 0, float("-inf")])
+                    b[0] += m.value
+                    b[1] += 1
+                    b[2] = max(b[2], m.value)
+            if since is not None:
+                bins.pop(since.date(), None)
+            bins.update(fresh)
+            last = msgs[-1].time_utc
+            self._last[key] = datetime.combine(last.date(), time(), tzinfo=last.tzinfo)
+        return bins
+
+
+def window_series(bins: dict[date, list[float]], stat: str, days: int) -> tuple[list[str], list[float]]:
+    """Trailing `days`-day mean or max from daily stats, at day resolution, plotted at the end of each
+    window (midnight after the last day) - i.e. the value the soft sensor would see at that moment.
+    Same definition as the model inputs (rdt/features/windows.py), rounded to whole days."""
+    if not bins:
+        return [], []
+    df = pd.DataFrame.from_dict(bins, orient="index", columns=["sum", "n", "max"]).sort_index()
+    df.index = pd.DatetimeIndex(df.index)
+    df = df.asfreq("D")                                  # missing days -> NaN, so windows stay in days
+    r = df.rolling(days, min_periods=1)
+    y = r["max"].max() if stat == "max" else r["sum"].sum() / r["n"].sum().replace(0, float("nan"))
+    y = y.dropna()
+    x = (y.index + pd.Timedelta(days=1)).strftime("%Y-%m-%dT00:00:00")
+    return list(x), [float(v) for v in y]
+
+
+# --- look -------------------------------------------------------------------------------------
+FONT = "'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace"
+AXIS = {"showline": True, "mirror": True, "linecolor": "#7d93a8", "linewidth": 1, "gridcolor": "#e3ebf3",
+        "zeroline": False, "ticks": "outside", "tickcolor": "#7d93a8"}
+THEME = {"font": {"family": FONT, "size": 12, "color": "#14273a"}, "paper_bgcolor": "#ffffff",
+         "plot_bgcolor": "#f7fafd", "hoverlabel": {"font": {"family": FONT}}}
+# one colour per sensor kind, distinct from the metal estimate (blue) and lab points (black)
+SENSOR_COLOURS = {"discharge": "#0e8f8f", "turbidity": "#c97a14", "spm_daily": "#8b4fa8"}
+
+
+def with_sensor_panels(metal_fig: Fig, panels: list[tuple[str, str, list, list]],
+                       metal_share: float = 0.46) -> Fig:
+    """Stack sensor panels [(sensor kind, title, x, y)] under the metal chart on one shared time axis,
+    so a flood or turbidity peak lines up with the metal estimate above it; zooming one zooms all.
+    Every panel is boxed and titled, with a gap between panels."""
+    n = len(panels)
+    gap = 0.075
+    h = (1 - metal_share - gap * n) / max(n, 1)
+    data = list(metal_fig["data"])
+    layout = {**metal_fig["layout"], **THEME}
+    ytitle = layout.get("yaxis", {}).get("title", {}).get("text", "")
+    layout["yaxis"] = {**AXIS, "domain": [1 - metal_share, 1]}
+    layout["xaxis"] = {**AXIS, "anchor": "y", "showticklabels": n == 0}
+    notes = list(layout.get("annotations", []))
+    notes.append({"text": f"<b>{ytitle}</b>", "xref": "paper", "yref": "paper", "x": 0, "y": 1,
+                  "xanchor": "left", "yanchor": "bottom", "yshift": 4, "showarrow": False,
+                  "font": {"size": 13, "color": "#2a5d8f"}})
+    for i, (kind, title, x, y) in enumerate(panels, start=2):
+        top = 1 - metal_share - gap - (i - 2) * (h + gap)
+        colour = SENSOR_COLOURS.get(kind, "#555")
+        data.append({"type": "scatter", "x": x, "y": y, "mode": "lines", "line": {"color": colour, "width": 1.6},
+                     "name": title, "xaxis": f"x{i}", "yaxis": f"y{i}", "showlegend": False,
+                     "hovertemplate": "%{y:.4g}<extra></extra>"})
+        layout[f"yaxis{i}"] = {**AXIS, "domain": [top - h, top], "anchor": f"x{i}"}
+        layout[f"xaxis{i}"] = {**AXIS, "anchor": f"y{i}", "matches": "x", "showticklabels": i == n + 1}
+        notes.append({"text": f"<b>{title}</b>", "xref": "paper", "yref": "paper", "x": 0, "y": top,
+                      "xanchor": "left", "yanchor": "bottom", "yshift": 4, "showarrow": False,
+                      "font": {"size": 13, "color": colour}})
+    layout["annotations"] = notes
+    layout["legend"] = {"orientation": "h", "y": 1, "yanchor": "bottom", "x": 1, "xanchor": "right",
+                        "bgcolor": "rgba(0,0,0,0)"}
+    layout["margin"] = {"l": 64, "r": 16, "t": 48, "b": 36}
+    layout["hovermode"] = "x"
     return {"data": data, "layout": layout}
 
 
@@ -201,7 +277,7 @@ def scoreboard_rows(comparisons: list[LabComparison], metals: tuple[str, ...]) -
             "twin closer": f"{g.closer.mean() * 100:.0f}% of results",
             "inside twin's 90% range": f"{g.inside.mean() * 100:.0f}%",
             # running tally, not a significance test (see analysis/04_soft_sensor_evaluation.py)
-            "verdict": "about equal" if abs(et - er) < 1 else "twin better" if et < er else "reference better",
+            "verdict": "about equal" if abs(et - er) < 1 else "twin better" if et < er else "last lab value better",
         })
     return out
 
@@ -217,7 +293,8 @@ def running_error(comparisons: list[LabComparison], metal: str) -> go.Figure:
         fig.add_trace(go.Scatter(x=g.time, y=g.err_ref.expanding().median(), mode="lines",
                                  line={"color": "#888", "dash": "dash"}, name="last lab value known (no twin)"))
     fig.update_layout(yaxis_title=f"{metal.upper()}: median % error so far",
-                      margin={"l": 50, "r": 10, "t": 30, "b": 30}, legend={"orientation": "h", "y": 1.15},
-                      uirevision=f"run-{metal}")
-    fig.update_yaxes(rangemode="tozero")
+                      margin={"l": 60, "r": 16, "t": 30, "b": 36}, legend={"orientation": "h", "y": 1.15},
+                      uirevision=f"run-{metal}", **THEME)
+    fig.update_xaxes(**AXIS)
+    fig.update_yaxes(**AXIS, rangemode="tozero")
     return fig

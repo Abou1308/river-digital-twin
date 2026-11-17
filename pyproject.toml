@@ -27,5 +27,8 @@ rdt = "rdt.cli:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+"rdt.dashboard" = ["assets/*"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
