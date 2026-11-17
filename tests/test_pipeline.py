@@ -64,7 +64,7 @@ def test_lab_turnaround(cfg, catalog, train_table):
     twin.attach(broker)
     r = _readings()
     lab = r["sensor_id"].str.contains("_spm_")
-    r["available_utc"] = r["time_utc"] + lab * pd.Timedelta(days=5)
+    r["available_utc"] = r["time_utc"] + lab.astype(int) * pd.Timedelta(days=5)
     r = r.sort_values("available_utc", kind="stable").reset_index(drop=True)
     Replayer(r, catalog, broker, SimClock(START, speed=None)).run()
 

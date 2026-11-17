@@ -49,7 +49,7 @@ def max_window(names: Iterable[str]) -> pd.Timedelta:
 
 
 def season(t: datetime | pd.Timestamp) -> dict[str, float]:
-    a = 2 * math.pi * pd.Timestamp(t).dayofyear / 365.25
+    a = 2 * math.pi * pd.Timestamp(t).day_of_year / 365.25
     return {"doy_sin": math.sin(a), "doy_cos": math.cos(a)}
 
 
@@ -83,7 +83,9 @@ def features_table(readings: pd.DataFrame, station: str, times: Iterable, names:
     series = {}
     for kind in PREFIX_TO_SENSOR.values():
         r = readings[readings["sensor_id"] == f"{station}_{kind}"].sort_values("time_utc")
-        series[kind] = (pd.DatetimeIndex(r["time_utc"]).asi8.tolist(), r["value"].to_numpy(float).tolist())
+        # pandas 3 parses timestamps at microsecond resolution; window bounds are in nanoseconds.
+        times_ns = pd.DatetimeIndex(r["time_utc"]).as_unit("ns").asi8.tolist()
+        series[kind] = (times_ns, r["value"].to_numpy(float).tolist())
     times = list(times)
     return pd.DataFrame([compute_features(series, t, names) for t in times], columns=list(names),
                         index=pd.DatetimeIndex(times, name="time_utc"))

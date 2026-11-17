@@ -72,7 +72,7 @@ def build_system(cfg: Config, speed: float | None | str = "config") -> System:
     # Lab results are published after the (assumed) lab turnaround; time_utc stays the sample time.
     # Results whose arrival falls after replay_end are not streamed.
     is_lab = readings["sensor_id"].map(lambda s: catalog[s].is_lab).astype(bool)
-    readings["available_utc"] = readings["time_utc"] + is_lab * pd.Timedelta(days=sc.lab_delay_d)
+    readings["available_utc"] = readings["time_utc"] + is_lab.astype(int) * pd.Timedelta(days=sc.lab_delay_d)
     readings = (readings[readings["available_utc"] < cfg.periods.replay_end]
                 .sort_values("available_utc", kind="stable").reset_index(drop=True))
     log.info("Loaded %d readings to replay from %d sensors (lab turnaround %.0f d)",
