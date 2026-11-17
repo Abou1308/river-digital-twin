@@ -2,6 +2,7 @@
 
 from rdt.quality.classify import (
     QUALITY_CLASSES,
+    assign_class,
     class_probabilities,
     corrected_limits,
     reuse_applications,
@@ -10,6 +11,7 @@ from rdt.quality.classify import (
 
 __all__ = [
     "QUALITY_CLASSES",
+    "assign_class",
     "class_probabilities",
     "corrected_limits",
     "reuse_applications",
