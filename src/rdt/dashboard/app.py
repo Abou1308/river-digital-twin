@@ -21,6 +21,13 @@ Accuracy table: each lab result, when it arrives, is compared with what the twin
 sample time and with the last lab value known then (both before the result was known).
 Error = |prediction - lab| / lab; "about equal" = less than 1 percentage point apart. This is a running
 tally, not a significance test: the statistical tests are in analysis/04_soft_sensor_evaluation.py.
+
+Quality class, per station: the probability of each Rbk 2022 class for the latest estimate (worst class
+over the five metals, from joint draws), with the class limits corrected to the last lutum and organic
+carbon received (organic matter = `quality.om_per_corg` x organic carbon). The dot shows the most likely
+class. Below it, the class forecast so far: each complete lab sample's class compared with the class
+probabilities predicted for its sample time, for the twin and the last known lab value (Brier score:
+0 is perfect, lower is better; accuracy of the most likely class).
 """
 
 from __future__ import annotations
@@ -31,8 +38,10 @@ import pandas as pd
 from dash import Dash, Input, Output, dash_table, dcc, html
 
 from rdt.dashboard import views
+from rdt.monitoring.classes import score_class_comparisons
+from rdt.quality import QUALITY_CLASSES
 from rdt.data.cleaning import passes_arrival_rules
-from rdt.state import StateStore
+from rdt.state import ClassComparison, StateStore
 from rdt.twin.network import RiverNetwork
 
 TITLE = "Digital Twin of Heavy-Metal Transport Via Suspended Sediments: In the Rhine & Maas"
@@ -61,6 +70,54 @@ def _control(label: str, component) -> html.Div:
     return html.Div(className="control", children=[html.Label(label), component])
 
 
+def _class_bar(probabilities: dict[str, float]) -> html.Div:
+    segments = []
+    for cls in QUALITY_CLASSES:
+        p = probabilities[cls]
+        if p <= 0:
+            continue
+        segments.append(html.Div(f"{p:.0%}" if p >= 0.12 else "", className="class-seg", title=f"{cls}: {p:.1%}",
+                                 style={"width": f"{p * 100:.2f}%", "background": views.CLASS_COLOURS[cls],
+                                        "color": views.CLASS_TEXT_COLOURS[cls]}))
+    return html.Div(segments, className="class-bar")
+
+
+def _class_scores_text(comparisons: list[ClassComparison]) -> str:
+    if not comparisons:
+        return "Class forecast so far: no complete lab sample yet."
+    twin = score_class_comparisons(comparisons)
+    text = f"Class forecast so far ({twin['n']} lab samples): twin Brier {twin['brier']:.2f}, " \
+           f"accuracy {twin['accuracy']:.0%}"
+    if comparisons[0].reference_probabilities is not None:
+        ref = score_class_comparisons(comparisons, reference=True)
+        text += f"; last lab value Brier {ref['brier']:.2f}, accuracy {ref['accuracy']:.0%}"
+    return text + "."
+
+
+def _class_station(station: str, summary: views.ClassSummary, comparisons: list[ClassComparison]) -> html.Div:
+    cls = summary.most_likely
+    heading = html.Div(className="class-heading", children=[
+        html.Span(className="class-dot", style={"background": views.CLASS_COLOURS[cls]}),
+        html.Strong(station.capitalize()),
+        html.Span(f"most likely {cls} ({summary.probabilities[cls]:.0%})" if cls else summary.reason,
+                  className="muted"),
+    ])
+    body = [heading]
+    if summary.probabilities:
+        body.append(_class_bar(summary.probabilities))
+        body.append(html.Div(f"Lutum {summary.lutum_pct:.1f}%, organic matter {summary.om_pct:.1f}% "
+                             f"(lab sample {summary.soil_sample_time:%Y-%m-%d})", className="muted"))
+    body.append(html.Div(_class_scores_text(comparisons), className="muted"))
+    return html.Div(body, className="class-station")
+
+
+def _class_legend() -> html.Div:
+    return html.Div(className="class-legend muted", children=[
+        html.Span([html.Span(className="class-dot", style={"background": views.CLASS_COLOURS[c]}), c])
+        for c in QUALITY_CLASSES
+    ])
+
+
 def create_app(
     store: StateStore,
     network: RiverNetwork,
@@ -69,9 +126,14 @@ def create_app(
     refresh_ms: int = 1000,
     units: dict[str, str] | None = None,
     features: tuple[str, ...] = (),
+    soil_correction: pd.DataFrame | None = None,
+    om_per_corg: float | None = None,
 ) -> Dash:
     """`units`: sensor_id -> unit (panel titles; a station without a sensor gets its selector disabled).
-    `features`: the soft sensor's inputs, marked as "model input" in the sensor selectors."""
+    `features`: the soft sensor's inputs, marked as "model input" in the sensor selectors.
+    `soil_correction` and `om_per_corg` (with `limits`) are needed for the quality-class panel."""
+    if limits is None or soil_correction is None or om_per_corg is None:
+        raise ValueError("The quality-class panel needs limits, soil_correction and om_per_corg.")
     modelled = [s.id for s in network.modelled_stations()]
     series = views.EstimateSeries()
     daily = views.DailyStats()
@@ -122,10 +184,9 @@ def create_app(
             ]),
         ]),
         html.Section(className="card", children=[
-            html.H3("Class probabilities"),
-            html.Div(id="class-probs", className="muted",
-                     children="Not available yet: soil-quality class probabilities will be shown here "
-                              "once rdt.quality is implemented."),
+            html.H3("Quality class of the suspended sediment (Rbk 2022)"),
+            _class_legend(),
+            html.Div(id="class-probs", className="class-grid"),
         ]),
         html.Section(className="card", children=[
             html.H3("Alerts"),
@@ -208,5 +269,22 @@ def create_app(
         fig["layout"]["uirevision"] = station          # keep the zoom when switching metal or sensor view
         return (clock, fig, views.alerts_rows(store.alerts()), board, cols,
                 views.running_error(comparisons, metal))
+
+    # Class probabilities take ~10 ms per estimate; recompute only when the estimate or soil values change.
+    summaries: dict[str, tuple[tuple, views.ClassSummary]] = {}
+
+    def station_summary(station: str) -> views.ClassSummary:
+        estimates = store.estimates(station)
+        est = estimates[-1] if estimates else None
+        lutum, corg = store.latest_reading(f"{station}_spm_lutum"), store.latest_reading(f"{station}_spm_corg")
+        key = (est.time_utc if est else None, lutum, corg)
+        cached = summaries.get(station)
+        if cached is None or cached[0] != key:
+            summaries[station] = (key, views.class_summary(est, lutum, corg, limits, soil_correction, om_per_corg))
+        return summaries[station][1]
+
+    @app.callback(Output("class-probs", "children"), Input("live-tick", "data"))
+    def class_panel(_n):
+        return [_class_station(s, station_summary(s), store.class_comparisons(s)) for s in modelled]
 
     return app

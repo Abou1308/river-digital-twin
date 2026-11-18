@@ -61,7 +61,8 @@ def _run(args: argparse.Namespace) -> None:
     system.replayer.start()
     app = create_app(system.store, system.network, cfg.softsensor.metals, system.limits, cfg.dashboard.refresh_ms,
                      units={sid: info.unit for sid, info in system.catalog.items()},
-                     features=tuple(cfg.softsensor.features))
+                     features=tuple(cfg.softsensor.features), soil_correction=system.soil_correction,
+                     om_per_corg=cfg.quality.om_per_corg)
     app.run(host=cfg.dashboard.host, port=cfg.dashboard.port, debug=False)
 
 

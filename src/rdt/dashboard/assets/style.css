@@ -116,6 +116,56 @@ body {
   font-size: 0.9rem;
 }
 
+/* quality-class panel: one column per modelled station, a stacked bar of class probabilities */
+.class-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px 24px;
+}
+
+.class-station > * + * {
+  margin-top: 8px;
+}
+
+.class-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+}
+
+.class-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.class-bar {
+  display: flex;
+  height: 26px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.class-seg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.class-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  margin-bottom: 12px;
+}
+
 /* dropdowns use the page font too */
 .Select-control, .Select-menu-outer, .Select-value-label, .Select-option {
   font-family: var(--font);

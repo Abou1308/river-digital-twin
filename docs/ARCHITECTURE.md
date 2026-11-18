@@ -29,7 +29,7 @@
 | `quality/` | Soil-type correction, class probabilities, reuse applications | correction and class probabilities done (tests in `tests/test_quality.py`); reuse applications TODO |
 | `monitoring/` | Drift detection, evaluation metrics, class evaluation (`ClassComparison` per complete lab sample, twin and reference; Brier, accuracy, confusion matrix) | simple detector + metrics + class evaluation done; CUSUM TODO |
 | `sampling/` | Sampling policies (RL track) | fixed-interval done; RL TODO |
-| `dashboard/` | Dash app + pure plotly figure builders | map, metal series with reference line, scoreboard, sensors, alerts; class panel planned |
+| `dashboard/` | Dash app + pure plotly figure builders | metal series with reference line, scoreboard, sensors, quality-class panel (current class probabilities and class forecast scores per station), alerts |
 | `runtime.py` | `build_system(cfg)` wires everything | done |
 | `cli.py` | `rdt info`, `rdt run` | done |
 
@@ -46,4 +46,4 @@
 - **Soft sensor:** done (Kalman, see `softsensor/kalman.py` docstring). Lab results are streamed after an assumed turnaround (`softsensor.lab_delay_d`); the twin compares each result with its prediction for the sample time made with only the results known then.
 - **Quality:** `quality/classify.py`: reuse mapping (`reuse_applications`).
 - **Representation model:** what a `Reach` carries (fluxes, travel time); validate against Keizersveer and Kampen.
-- **Dashboard:** class-probability panel, reaches coloured by class.
+- **Dashboard:** reaches coloured by class, once the representation model propagates fluxes.

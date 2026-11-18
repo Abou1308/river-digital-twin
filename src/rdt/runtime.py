@@ -36,6 +36,7 @@ class System:
     catalog: dict[str, SensorInfo]
     network: RiverNetwork
     limits: pd.DataFrame
+    soil_correction: pd.DataFrame
     store: InMemoryStateStore
     broker: Broker
     soft_sensor: SoftSensor
@@ -87,6 +88,7 @@ def build_system(cfg: Config, speed: float | None | str = "config") -> System:
              len(readings), len(streamed), sc.lab_delay_d)
 
     limits = load_regulatory_limits(cfg.data_dir)
+    soil_correction = load_soil_correction(cfg.data_dir)
     store = InMemoryStateStore(history_maxlen=cfg.twin.history_maxlen)
     broker = make_broker(cfg.broker)
     twin = DigitalTwin(
@@ -98,8 +100,7 @@ def build_system(cfg: Config, speed: float | None | str = "config") -> System:
         drift_detector=IntervalExceedanceDetector(),
         estimate_interval=timedelta(hours=cfg.twin.estimate_interval_h),
         reference=reference,
-        class_evaluator=ClassEvaluator(sc.metals, limits, load_soil_correction(cfg.data_dir),
-                                       cfg.quality.om_per_corg),
+        class_evaluator=ClassEvaluator(sc.metals, limits, soil_correction, cfg.quality.om_per_corg),
     )
     twin.attach(broker)
 
@@ -111,6 +112,7 @@ def build_system(cfg: Config, speed: float | None | str = "config") -> System:
         catalog=catalog,
         network=network,
         limits=limits,
+        soil_correction=soil_correction,
         store=store,
         broker=broker,
         soft_sensor=soft_sensor,

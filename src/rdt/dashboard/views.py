@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import date, datetime, time
 
+import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 
 from rdt.messaging.messages import SensorMessage
+from rdt.quality import sample_class_probabilities
 from rdt.softsensor.estimate import MetalEstimate
 from rdt.state import Alert, LabComparison
 from rdt.twin.network import RiverNetwork
@@ -21,6 +24,8 @@ CLASS_COLOURS = {
     "heavily contaminated": "#c62828",
     None: "#9e9e9e",
 }
+# Text on a class colour: dark on the light yellow, white on the others, for legible contrast.
+CLASS_TEXT_COLOURS = {cls: "#14273a" if cls == "slightly contaminated" else "#ffffff" for cls in CLASS_COLOURS}
 
 
 def network_map(network: RiverNetwork, station_class: dict[str, str | None]) -> go.Figure:
@@ -298,3 +303,39 @@ def running_error(comparisons: list[LabComparison], metal: str) -> go.Figure:
     fig.update_xaxes(**AXIS)
     fig.update_yaxes(**AXIS, rangemode="tozero")
     return fig
+
+
+@dataclass(frozen=True)
+class ClassSummary:
+    """Current class probabilities at a station, or the reason there are none."""
+
+    probabilities: dict[str, float] | None
+    reason: str = ""
+    lutum_pct: float | None = None
+    om_pct: float | None = None
+    soil_sample_time: datetime | None = None
+
+    @property
+    def most_likely(self) -> str | None:
+        return max(self.probabilities, key=self.probabilities.get) if self.probabilities else None
+
+
+def class_summary(
+    estimate: MetalEstimate | None,
+    lutum: SensorMessage | None,
+    corg: SensorMessage | None,
+    limits: pd.DataFrame,
+    soil_correction: pd.DataFrame,
+    om_per_corg: float,
+) -> ClassSummary:
+    """Class probabilities of the latest estimate, corrected with the last lutum / organic carbon received."""
+    if estimate is None:
+        return ClassSummary(None, "no estimate yet")
+    if lutum is None or corg is None:
+        return ClassSummary(None, "no class: lutum / organic carbon unknown")
+    om = om_per_corg * corg.value
+    # A fixed seed gives the same numbers for the same estimate, so the panel does not flicker on refresh.
+    probs = sample_class_probabilities(estimate, limits, soil_correction, lutum.value, om,
+                                       rng=np.random.default_rng(0))
+    return ClassSummary(probs, lutum_pct=lutum.value, om_pct=om,
+                        soil_sample_time=min(lutum.time_utc, corg.time_utc))
