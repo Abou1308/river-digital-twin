@@ -24,6 +24,7 @@ from rdt.monitoring import IntervalExceedanceDetector
 from rdt.monitoring.classes import ClassEvaluator
 from rdt.replay import Replayer, SimClock
 from rdt.softsensor import SoftSensor, build_table, make_soft_sensor
+from rdt.softsensor.recalibration import RecalibratedSoftSensor
 from rdt.state import InMemoryStateStore
 from rdt.twin import DigitalTwin, RiverNetwork
 
@@ -61,6 +62,8 @@ def build_system(cfg: Config, speed: float | None | str = "config") -> System:
     lab = table[(table["sample_time_utc"] < cut) & table["station"].isin(modelled)]
     train = build_table(lab, load_readings(cfg.data_dir, end=cut), sc.metals, sc.features, training=True)
     soft_sensor = make_soft_sensor(sc.kind, sc.metals, sc.features, lab_delay_d=sc.lab_delay_d)
+    if sc.recalibrate_prior_n is not None:
+        soft_sensor = RecalibratedSoftSensor(soft_sensor, prior_n=sc.recalibrate_prior_n)
     soft_sensor.fit(train, cutoff=cut)
     log.info("Fitted %s soft sensor on %d lab samples", soft_sensor.name, len(train))
     reference = None

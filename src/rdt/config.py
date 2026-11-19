@@ -52,6 +52,7 @@ class SoftSensorConfig:
     lab_delay_d: float                  # assumed lab turnaround used in the live replay
     eval_lab_delays_d: tuple[float, ...]  # turnarounds compared in offline evaluation
     reference: str | None = None        # model run alongside for the live comparison (None = off)
+    recalibrate_prior_n: float | None = None  # online range recalibration (None = off)
 
 
 @dataclass(frozen=True)
@@ -108,6 +109,7 @@ def load_config(path: str | Path | None = None) -> Config:
             lab_delay_d=float(raw["softsensor"]["lab_delay_d"]),
             eval_lab_delays_d=tuple(raw["softsensor"]["eval_lab_delays_d"]),
             reference=raw["softsensor"].get("reference"),
+            recalibrate_prior_n=raw["softsensor"].get("recalibrate_prior_n"),
         ),
         quality=QualityConfig(om_per_corg=float(raw["quality"]["om_per_corg"])),
         stations=raw["stations"],

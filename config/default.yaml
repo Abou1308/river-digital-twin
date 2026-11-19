@@ -39,6 +39,10 @@ softsensor:
   # Run alongside the twin and shown on the dashboard scoreboard: "persistence" = last lab value known,
   # i.e. what you would have without the twin. null to switch off.
   reference: persistence
+  # Online recalibration of the prediction ranges from the lab results received so far
+  # (rdt/softsensor/recalibration.py): the weight, in lab results, of the training calibration.
+  # null = off.
+  recalibrate_prior_n: null
 
 quality:
   # The lab reports organic carbon; the soil-type correction needs organic matter. 1.724 is the
