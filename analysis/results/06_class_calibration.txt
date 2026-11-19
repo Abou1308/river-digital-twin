@@ -1,0 +1,74 @@
+
+=== eijsden: 200 complete lab samples, 61% at least moderately contaminated ===
+
+1. P(at least moderately contaminated)
+
+  twin: Brier 0.203 = reliability 0.014 - resolution 0.041 + uncertainty 0.238 (binned, approximate)
+  mean forecast - observed rate: +0.020 (95% block bootstrap -0.050 to +0.088)
+    bin  n  mean_forecast  observed  observed_lo  observed_hi
+0.0-0.2 22          0.113     0.364        0.197        0.570
+0.2-0.4 24          0.313     0.292        0.149        0.492
+0.4-0.6 43          0.505     0.465        0.325        0.611
+0.6-0.8 39          0.684     0.744        0.589        0.854
+0.8-1.0 72          0.938     0.806        0.700        0.880
+
+  persistence: Brier 0.282 = reliability 0.060 - resolution 0.005 + uncertainty 0.238 (binned, approximate)
+  mean forecast - observed rate: +0.066 (95% block bootstrap +0.001 to +0.128)
+    bin  n  mean_forecast  observed  observed_lo  observed_hi
+0.0-0.2 15          0.125     0.600        0.357        0.802
+0.2-0.4 33          0.302     0.515        0.352        0.675
+0.4-0.6 30          0.490     0.500        0.332        0.668
+0.6-0.8 25          0.706     0.640        0.445        0.798
+0.8-1.0 97          0.938     0.670        0.572        0.756
+
+2. Per class: mean forecast probability vs observed share
+                  class  twin  persistence  observed
+                  clean 0.000        0.000     0.000
+  slightly contaminated 0.370        0.324     0.390
+moderately contaminated 0.605        0.616     0.585
+   heavily contaminated 0.025        0.060     0.025
+
+3. Twin concentration ranges: share of lab results inside each central range (PIT)
+metal   n  50% range  80% range  90% range  95% range
+   cd 200      0.565      0.835      0.920       0.96
+   cu 200      0.455      0.720      0.830       0.88
+   ni 200      0.605      0.800      0.860       0.90
+   pb 200      0.460      0.755      0.845       0.90
+   zn 200      0.530      0.775      0.870       0.91
+
+=== lobith: 103 complete lab samples, 22% at least moderately contaminated ===
+
+1. P(at least moderately contaminated)
+
+  twin: Brier 0.064 = reliability 0.005 - resolution 0.117 + uncertainty 0.173 (binned, approximate)
+  mean forecast - observed rate: +0.039 (95% block bootstrap -0.004 to +0.081)
+    bin  n  mean_forecast  observed  observed_lo  observed_hi
+0.0-0.2 70          0.034     0.014        0.003        0.077
+0.2-0.4  6          0.269     0.167        0.030        0.564
+0.4-0.6  3          0.450     0.667        0.208        0.939
+0.6-0.8  6          0.671     0.500        0.188        0.812
+0.8-1.0 18          0.982     0.889        0.672        0.969
+
+  persistence: Brier 0.092 = reliability 0.028 - resolution 0.110 + uncertainty 0.173 (binned, approximate)
+  mean forecast - observed rate: +0.124 (95% block bootstrap +0.078 to +0.173)
+    bin  n  mean_forecast  observed  observed_lo  observed_hi
+0.0-0.2 51          0.069     0.020        0.003        0.103
+0.2-0.4 13          0.279     0.000        0.000        0.228
+0.4-0.6 15          0.475     0.267        0.109        0.520
+0.6-0.8  5          0.649     0.200        0.036        0.624
+0.8-1.0 19          0.963     0.895        0.686        0.971
+
+2. Per class: mean forecast probability vs observed share
+                  class  twin  persistence  observed
+                  clean 0.000        0.001     0.000
+  slightly contaminated 0.738        0.651     0.777
+moderately contaminated 0.262        0.346     0.223
+   heavily contaminated 0.000        0.001     0.000
+
+3. Twin concentration ranges: share of lab results inside each central range (PIT)
+metal   n  50% range  80% range  90% range  95% range
+   cd 105      0.514      0.790      0.905      0.943
+   cu 105      0.648      0.905      0.971      0.981
+   ni 105      0.457      0.829      0.867      0.914
+   pb 105      0.429      0.743      0.810      0.914
+   zn 105      0.505      0.752      0.876      0.914
