@@ -1,5 +1,7 @@
 
-=== eijsden: 200 complete lab samples, 61% at least moderately contaminated ===
+=================== 2021-2024 fixed ===================
+
+--- eijsden: 200 complete lab samples, 61% at least moderately contaminated ---
 
 1. P(at least moderately contaminated)
 
@@ -36,7 +38,7 @@ metal   n  50% range  80% range  90% range  95% range
    pb 200      0.460      0.755      0.845       0.90
    zn 200      0.530      0.775      0.870       0.91
 
-=== lobith: 103 complete lab samples, 22% at least moderately contaminated ===
+--- lobith: 103 complete lab samples, 22% at least moderately contaminated ---
 
 1. P(at least moderately contaminated)
 
@@ -72,3 +74,247 @@ metal   n  50% range  80% range  90% range  95% range
    ni 105      0.457      0.829      0.867      0.914
    pb 105      0.429      0.743      0.810      0.914
    zn 105      0.505      0.752      0.876      0.914
+
+=================== 2021-2024 recalibrated ===================
+
+--- eijsden: 200 complete lab samples, 61% at least moderately contaminated ---
+
+1. P(at least moderately contaminated)
+
+  twin: Brier 0.204 = reliability 0.016 - resolution 0.037 + uncertainty 0.238 (binned, approximate)
+  mean forecast - observed rate: +0.023 (95% block bootstrap -0.046 to +0.092)
+    bin  n  mean_forecast  observed  observed_lo  observed_hi
+0.0-0.2 17          0.099     0.353        0.173        0.587
+0.2-0.4 30          0.310     0.367        0.219        0.545
+0.4-0.6 43          0.515     0.442        0.304        0.589
+0.6-0.8 38          0.686     0.763        0.608        0.870
+0.8-1.0 72          0.938     0.792        0.684        0.869
+
+  persistence: Brier 0.282 = reliability 0.060 - resolution 0.005 + uncertainty 0.238 (binned, approximate)
+  mean forecast - observed rate: +0.066 (95% block bootstrap +0.001 to +0.128)
+    bin  n  mean_forecast  observed  observed_lo  observed_hi
+0.0-0.2 15          0.125     0.600        0.357        0.802
+0.2-0.4 33          0.302     0.515        0.352        0.675
+0.4-0.6 30          0.490     0.500        0.332        0.668
+0.6-0.8 25          0.706     0.640        0.445        0.798
+0.8-1.0 97          0.938     0.670        0.572        0.756
+
+2. Per class: mean forecast probability vs observed share
+                  class  twin  persistence  observed
+                  clean 0.000        0.000     0.000
+  slightly contaminated 0.367        0.324     0.390
+moderately contaminated 0.608        0.616     0.585
+   heavily contaminated 0.025        0.060     0.025
+
+3. Twin concentration ranges: share of lab results inside each central range (PIT)
+metal   n  50% range  80% range  90% range  95% range
+   cd 200      0.540      0.825      0.910      0.960
+   cu 200      0.520      0.800      0.900      0.930
+   ni 200      0.625      0.795      0.890      0.910
+   pb 200      0.475      0.755      0.855      0.900
+   zn 200      0.540      0.785      0.880      0.905
+
+--- lobith: 103 complete lab samples, 22% at least moderately contaminated ---
+
+1. P(at least moderately contaminated)
+
+  twin: Brier 0.065 = reliability 0.009 - resolution 0.119 + uncertainty 0.173 (binned, approximate)
+  mean forecast - observed rate: +0.039 (95% block bootstrap -0.005 to +0.081)
+    bin  n  mean_forecast  observed  observed_lo  observed_hi
+0.0-0.2 72          0.038     0.028        0.008        0.096
+0.2-0.4  4          0.300     0.000        0.000        0.490
+0.4-0.6  3          0.454     0.667        0.208        0.939
+0.6-0.8  5          0.657     0.400        0.118        0.769
+0.8-1.0 19          0.971     0.895        0.686        0.971
+
+  persistence: Brier 0.092 = reliability 0.028 - resolution 0.110 + uncertainty 0.173 (binned, approximate)
+  mean forecast - observed rate: +0.124 (95% block bootstrap +0.078 to +0.173)
+    bin  n  mean_forecast  observed  observed_lo  observed_hi
+0.0-0.2 51          0.069     0.020        0.003        0.103
+0.2-0.4 13          0.279     0.000        0.000        0.228
+0.4-0.6 15          0.475     0.267        0.109        0.520
+0.6-0.8  5          0.649     0.200        0.036        0.624
+0.8-1.0 19          0.963     0.895        0.686        0.971
+
+2. Per class: mean forecast probability vs observed share
+                  class  twin  persistence  observed
+                  clean 0.000        0.001     0.000
+  slightly contaminated 0.737        0.651     0.777
+moderately contaminated 0.263        0.346     0.223
+   heavily contaminated 0.000        0.001     0.000
+
+3. Twin concentration ranges: share of lab results inside each central range (PIT)
+metal   n  50% range  80% range  90% range  95% range
+   cd 105      0.495      0.800      0.914      0.952
+   cu 105      0.543      0.819      0.924      0.971
+   ni 105      0.467      0.838      0.867      0.895
+   pb 105      0.495      0.790      0.914      0.924
+   zn 105      0.476      0.762      0.867      0.905
+
+=================== 2021-2025 fixed ===================
+
+--- eijsden: 227 complete lab samples, 60% at least moderately contaminated ---
+
+1. P(at least moderately contaminated)
+
+  twin: Brier 0.199 = reliability 0.013 - resolution 0.043 + uncertainty 0.239 (binned, approximate)
+  mean forecast - observed rate: +0.017 (95% block bootstrap -0.045 to +0.082)
+    bin  n  mean_forecast  observed  observed_lo  observed_hi
+0.0-0.2 26          0.114     0.346        0.194        0.538
+0.2-0.4 32          0.310     0.281        0.156        0.454
+0.4-0.6 47          0.509     0.489        0.353        0.628
+0.6-0.8 40          0.684     0.750        0.598        0.858
+0.8-1.0 82          0.935     0.805        0.706        0.876
+
+  persistence: Brier 0.271 = reliability 0.051 - resolution 0.009 + uncertainty 0.239 (binned, approximate)
+  mean forecast - observed rate: +0.063 (95% block bootstrap +0.000 to +0.129)
+    bin   n  mean_forecast  observed  observed_lo  observed_hi
+0.0-0.2  19          0.126     0.579        0.363        0.769
+0.2-0.4  39          0.300     0.436        0.293        0.590
+0.4-0.6  33          0.489     0.515        0.352        0.675
+0.6-0.8  28          0.710     0.643        0.458        0.793
+0.8-1.0 108          0.937     0.685        0.593        0.765
+
+2. Per class: mean forecast probability vs observed share
+                  class  twin  persistence  observed
+                  clean 0.000        0.000     0.000
+  slightly contaminated 0.380        0.333     0.396
+moderately contaminated 0.598        0.613     0.581
+   heavily contaminated 0.022        0.053     0.022
+
+3. Twin concentration ranges: share of lab results inside each central range (PIT)
+metal   n  50% range  80% range  90% range  95% range
+   cd 242      0.583      0.843      0.921      0.959
+   cu 242      0.459      0.727      0.847      0.897
+   ni 242      0.591      0.806      0.860      0.905
+   pb 242      0.479      0.760      0.855      0.909
+   zn 242      0.550      0.781      0.876      0.921
+
+--- lobith: 119 complete lab samples, 21% at least moderately contaminated ---
+
+1. P(at least moderately contaminated)
+
+  twin: Brier 0.064 = reliability 0.005 - resolution 0.107 + uncertainty 0.166 (binned, approximate)
+  mean forecast - observed rate: +0.034 (95% block bootstrap -0.009 to +0.076)
+    bin  n  mean_forecast  observed  observed_lo  observed_hi
+0.0-0.2 83          0.037     0.024        0.007        0.084
+0.2-0.4  8          0.288     0.125        0.022        0.471
+0.4-0.6  3          0.450     0.667        0.208        0.939
+0.6-0.8  7          0.669     0.571        0.250        0.842
+0.8-1.0 18          0.982     0.889        0.672        0.969
+
+  persistence: Brier 0.097 = reliability 0.035 - resolution 0.105 + uncertainty 0.166 (binned, approximate)
+  mean forecast - observed rate: +0.135 (95% block bootstrap +0.086 to +0.182)
+    bin  n  mean_forecast  observed  observed_lo  observed_hi
+0.0-0.2 58          0.070     0.017        0.003        0.091
+0.2-0.4 16          0.281     0.000        0.000        0.194
+0.4-0.6 18          0.483     0.278        0.125        0.509
+0.6-0.8  7          0.670     0.143        0.026        0.513
+0.8-1.0 20          0.957     0.900        0.699        0.972
+
+2. Per class: mean forecast probability vs observed share
+                  class  twin  persistence  observed
+                  clean 0.000        0.001      0.00
+  slightly contaminated 0.756        0.654      0.79
+moderately contaminated 0.244        0.344      0.21
+   heavily contaminated 0.000        0.001      0.00
+
+3. Twin concentration ranges: share of lab results inside each central range (PIT)
+metal   n  50% range  80% range  90% range  95% range
+   cd 131      0.534      0.824      0.916      0.947
+   cu 131      0.656      0.908      0.962      0.985
+   ni 131      0.450      0.847      0.885      0.924
+   pb 131      0.443      0.771      0.832      0.924
+   zn 131      0.534      0.794      0.893      0.924
+
+=================== 2021-2025 recalibrated ===================
+
+--- eijsden: 227 complete lab samples, 60% at least moderately contaminated ---
+
+1. P(at least moderately contaminated)
+
+  twin: Brier 0.200 = reliability 0.014 - resolution 0.040 + uncertainty 0.239 (binned, approximate)
+  mean forecast - observed rate: +0.020 (95% block bootstrap -0.041 to +0.085)
+    bin  n  mean_forecast  observed  observed_lo  observed_hi
+0.0-0.2 20          0.102     0.350        0.181        0.567
+0.2-0.4 38          0.306     0.316        0.191        0.475
+0.4-0.6 48          0.516     0.479        0.345        0.617
+0.6-0.8 39          0.686     0.769        0.617        0.874
+0.8-1.0 82          0.932     0.793        0.693        0.866
+
+  persistence: Brier 0.271 = reliability 0.051 - resolution 0.009 + uncertainty 0.239 (binned, approximate)
+  mean forecast - observed rate: +0.063 (95% block bootstrap +0.000 to +0.129)
+    bin   n  mean_forecast  observed  observed_lo  observed_hi
+0.0-0.2  19          0.126     0.579        0.363        0.769
+0.2-0.4  39          0.300     0.436        0.293        0.590
+0.4-0.6  33          0.489     0.515        0.352        0.675
+0.6-0.8  28          0.710     0.643        0.458        0.793
+0.8-1.0 108          0.937     0.685        0.593        0.765
+
+2. Per class: mean forecast probability vs observed share
+                  class  twin  persistence  observed
+                  clean 0.000        0.000     0.000
+  slightly contaminated 0.376        0.333     0.396
+moderately contaminated 0.601        0.613     0.581
+   heavily contaminated 0.023        0.053     0.022
+
+3. Twin concentration ranges: share of lab results inside each central range (PIT)
+metal   n  50% range  80% range  90% range  95% range
+   cd 242      0.554      0.831      0.913      0.955
+   cu 242      0.529      0.810      0.913      0.942
+   ni 242      0.607      0.806      0.897      0.913
+   pb 242      0.500      0.769      0.868      0.913
+   zn 242      0.558      0.793      0.893      0.921
+
+--- lobith: 119 complete lab samples, 21% at least moderately contaminated ---
+
+1. P(at least moderately contaminated)
+
+  twin: Brier 0.065 = reliability 0.005 - resolution 0.109 + uncertainty 0.166 (binned, approximate)
+  mean forecast - observed rate: +0.036 (95% block bootstrap -0.008 to +0.078)
+    bin  n  mean_forecast  observed  observed_lo  observed_hi
+0.0-0.2 84          0.041     0.024        0.007        0.083
+0.2-0.4  7          0.304     0.143        0.026        0.513
+0.4-0.6  3          0.454     0.667        0.208        0.939
+0.6-0.8  6          0.655     0.500        0.188        0.812
+0.8-1.0 19          0.971     0.895        0.686        0.971
+
+  persistence: Brier 0.097 = reliability 0.035 - resolution 0.105 + uncertainty 0.166 (binned, approximate)
+  mean forecast - observed rate: +0.135 (95% block bootstrap +0.086 to +0.182)
+    bin  n  mean_forecast  observed  observed_lo  observed_hi
+0.0-0.2 58          0.070     0.017        0.003        0.091
+0.2-0.4 16          0.281     0.000        0.000        0.194
+0.4-0.6 18          0.483     0.278        0.125        0.509
+0.6-0.8  7          0.670     0.143        0.026        0.513
+0.8-1.0 20          0.957     0.900        0.699        0.972
+
+2. Per class: mean forecast probability vs observed share
+                  class  twin  persistence  observed
+                  clean 0.000        0.001      0.00
+  slightly contaminated 0.754        0.654      0.79
+moderately contaminated 0.246        0.344      0.21
+   heavily contaminated 0.000        0.001      0.00
+
+3. Twin concentration ranges: share of lab results inside each central range (PIT)
+metal   n  50% range  80% range  90% range  95% range
+   cd 131      0.519      0.832      0.924      0.954
+   cu 131      0.542      0.832      0.924      0.962
+   ni 131      0.489      0.855      0.885      0.916
+   pb 131      0.511      0.817      0.916      0.931
+   zn 131      0.519      0.802      0.885      0.916
+
+=================== Comparison (twin) ===================
+class Brier: 4 classes; event: P(at least moderately contaminated); reliability: miscalibration part of
+the event Brier (lower is better); resolution: discrimination (higher is better); bias: mean forecast -
+observed rate; top bin: forecasts of 0.8-1.0; range error: mean |coverage - nominal| over the 50/80/90/95%
+ranges and all metals, in percentage points.
+
+               variant station  samples  class Brier  event Brier  reliability  resolution  bias  top bin forecast  top bin observed  range error (pp)  worst 90% range
+       2021-2024 fixed eijsden      200        0.445        0.203        0.014       0.041 0.020             0.938             0.806             4.525            0.830
+2021-2024 recalibrated eijsden      200        0.446        0.204        0.016       0.037 0.023             0.938             0.792             2.950            0.855
+       2021-2025 fixed eijsden      227        0.432        0.199        0.013       0.043 0.017             0.935             0.805             4.126            0.847
+2021-2025 recalibrated eijsden      227        0.433        0.200        0.014       0.040 0.020             0.932             0.793             2.581            0.868
+       2021-2024 fixed  lobith      103        0.127        0.064        0.005       0.117 0.039             0.982             0.889             4.488            0.810
+2021-2024 recalibrated  lobith      103        0.129        0.065        0.009       0.119 0.039             0.971             0.895             2.417            0.867
+       2021-2025 fixed  lobith      119        0.129        0.064        0.005       0.107 0.034             0.982             0.889             4.158            0.832
+2021-2025 recalibrated  lobith      119        0.130        0.065        0.005       0.109 0.036             0.971             0.895             2.177            0.885
