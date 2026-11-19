@@ -53,9 +53,9 @@ monitoring:
   cusum: {delta: 0.5, threshold: 5.0}   # textbook settings, in sd of the standardised error (as in the MVP)
 
 quality:
-  # The lab reports organic carbon; the soil-type correction needs organic matter. 1.724 is the
-  # conventional van Bemmelen factor (as in the MVP); 2.0 shifts class shares by about 1 percentage point.
-  om_per_corg: 1.724
+  # The lab reports organic carbon; the soil-type correction needs organic matter. 1.97 was measured
+  # for Dutch freshwater sediments (Van den Berg, H2O 1998); 1.724 is the conventional factor (MVP).
+  om_per_corg: 1.97
 
 # Settings per representation-model component (rdt/representation/), passed to its constructor.
 representation:

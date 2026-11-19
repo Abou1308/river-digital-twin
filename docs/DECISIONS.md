@@ -5,9 +5,14 @@ says where it applies, so it can be revisited or reversed.
 
 ## Quality classes
 
-- Organic matter = 1.724 x organic carbon (`quality.om_per_corg`). The lab reports carbon; the soil-type
-  correction needs organic matter. 1.724 is the conventional factor; 2.0 changes class shares by about
-  1 percentage point (MVP report).
+- Organic matter = 1.97 x organic carbon (`quality.om_per_corg`). The lab reports carbon; the soil-type
+  correction needs organic matter. 1.97 was measured for Dutch freshwater sediments (see the input
+  assumptions below); the conventional 1.724 (used in the MVP) has no clear source for sediments. The
+  regulation expects organic matter measured by loss on ignition, which the data does not include.
+  Switching between the two changes class shares by about 1 percentage point (MVP report). On
+  2021-2024 the Eijsden class Brier goes from 0.445 to 0.470 (persistence 0.599 to 0.635), because more
+  samples then sit near a class boundary. The factor also changes the observed classes, so scores under
+  the two factors are not comparable and the choice is made on the source, not on the score.
 - Lutum and organic matter are treated as exact. In reality they come from the last lab sample, which can
   be weeks old, so class probabilities are slightly overconfident.
 - Missing lutum or organic carbon gives "no class" instead of assuming standard soil
