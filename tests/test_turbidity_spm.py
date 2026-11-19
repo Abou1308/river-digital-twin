@@ -32,6 +32,13 @@ def test_fit_recovers_relation():
     assert rel.n == 200
 
 
+def test_autocorrelation_scales_cusum_input():
+    rel = TurbiditySpmRelation(0.0, 1.0, 0.5, 100, rho=0.6)
+    turb = math.e - 1                                  # ln(1 + turb) = 1, so ln SPM is predicted to be 1
+    assert rel.z(math.exp(2.0), turb) == pytest.approx(2.0)
+    assert rel.z_for_cusum(math.exp(2.0), turb) == pytest.approx(2.0 * math.sqrt(0.4 / 1.6))
+
+
 def test_fit_needs_enough_pairs():
     with pytest.raises(ValueError, match="cannot fit"):
         fit_relation(_readings(10), "lobith")
@@ -53,4 +60,16 @@ def test_check_quiet_when_consistent_and_alarms_on_persistent_offset(catalog):
     store = InMemoryStateStore()                 # SPM 20% higher than turbidity implies: z ~ +1.8 per day
     _replay(TurbiditySpmCheck({"lobith": rel}), catalog, _readings(60, seed=1), store, spm_factor=1.2)
     alerts = [a for a in store.alerts(limit=100) if a.kind == "sensor_drift"]
-    assert alerts and "higher" in alerts[-1].message
+    assert len(alerts) == 1 and "higher" in alerts[0].message      # one episode, not one alert per alarm
+    assert store.entity("turbidity_spm", "lobith").values["status"] == "drifting up"
+
+
+def test_episode_ends_after_quiet_period(catalog):
+    rel = TurbiditySpmRelation(1.0, 0.9, 0.1, 200)
+    store, check = InMemoryStateStore(), TurbiditySpmCheck({"lobith": rel}, quiet_days=10)
+    shifted, normal = _readings(20, seed=2), _readings(40, seed=3)
+    normal["time_utc"] += pd.Timedelta(days=20)
+    _replay(check, catalog, shifted, store, spm_factor=1.2)
+    _replay(check, catalog, normal, store)
+    assert store.entity("turbidity_spm", "lobith").values["status"] == "consistent"
+    assert [a.severity for a in store.alerts(limit=100) if a.kind == "sensor_drift"] == ["info", "warning"]
