@@ -26,7 +26,7 @@ twin:
   estimate_interval_h: 6      # how often (simulated time) the soft sensor produces a new estimate
   history_maxlen: 100000      # readings kept per sensor in the in-memory state store
   # Representation-model components (rdt/representation/), each optional; see runtime.make_components.
-  components: [sensor_health]
+  components: [sensor_health, turbidity_spm]
 
 softsensor:
   kind: kalman                # kalman | ridge_log | persistence
@@ -63,6 +63,9 @@ representation:
     stale_factor: 3       # stale after 3 x the nominal interval in sensors.csv without a reading ...
     min_stale_h: 24       # ... but never sooner than 24 h: the shortest input window, so shorter gaps
                           # (e.g. weekly maintenance of Lobith turbidity, ~7 h) do not affect the estimate
+  turbidity_spm:           # CUSUM on the daily residual of the training turbidity-SPM relation (as in the MVP)
+    delta: 0.5
+    threshold: 5.0
 
 # Station coordinates are approximate (WGS84) - verify before using for anything but display.
 stations:

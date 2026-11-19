@@ -18,6 +18,7 @@ from rdt.data import (
     load_soil_correction,
     sensor_catalog,
 )
+from rdt.data.cleaning import clean_training_readings
 from rdt.data.schema import SensorInfo, SensorKind
 from rdt.features import LiveFeatureBuilder, max_window
 from rdt.messaging import Broker, make_broker
@@ -26,6 +27,7 @@ from rdt.monitoring.classes import ClassEvaluator
 from rdt.monitoring.cusum import CusumDetector
 from rdt.replay import Replayer, SimClock
 from rdt.representation.sensor_health import SensorHealth, nominal_intervals
+from rdt.representation.turbidity_spm import TurbiditySpmCheck, fit_relation
 from rdt.softsensor import SoftSensor, build_table, make_soft_sensor
 from rdt.softsensor.recalibration import RecalibratedSoftSensor
 from rdt.state import InMemoryStateStore
@@ -57,11 +59,15 @@ def make_drift_detector(cfg: MonitoringConfig) -> DriftDetector:
     raise ValueError(f"Unknown drift detector '{cfg.drift}'. Options: cusum, interval_exceedance")
 
 
-def make_components(cfg: Config, catalog: dict[str, SensorInfo], sensors: pd.DataFrame,
-                    streamed: list[str]) -> list[TwinComponent]:
-    """Representation-model components named in `twin.components`, with their `representation` settings."""
+def make_components(cfg: Config, catalog: dict[str, SensorInfo], sensors: pd.DataFrame, streamed: list[str],
+                    modelled: list[str], history: pd.DataFrame) -> list[TwinComponent]:
+    """Representation-model components named in `twin.components`, with their `representation` settings.
+
+    `history`: readings before train_end (training rules applied), for components fitted on training data.
+    """
     factories: dict[str, Callable[[dict], TwinComponent]] = {
         "sensor_health": lambda p: SensorHealth({s: catalog[s] for s in streamed}, nominal_intervals(sensors), **p),
+        "turbidity_spm": lambda p: TurbiditySpmCheck({st: fit_relation(history, st) for st in modelled}, **p),
     }
     unknown = [n for n in cfg.twin.components if n not in factories]
     if unknown:
@@ -84,7 +90,8 @@ def build_system(cfg: Config, speed: float | None | str = "config") -> System:
     # --- leakage boundary: fit strictly before train_end, replay from replay_start -------------
     table = load_model_table(cfg.data_dir)
     lab = table[(table["sample_time_utc"] < cut) & table["station"].isin(modelled)]
-    train = build_table(lab, load_readings(cfg.data_dir, end=cut), sc.metals, sc.features, training=True)
+    history = load_readings(cfg.data_dir, end=cut)
+    train = build_table(lab, history, sc.metals, sc.features, training=True)
     soft_sensor = make_soft_sensor(sc.kind, sc.metals, sc.features, lab_delay_d=sc.lab_delay_d)
     if sc.recalibrate_prior_n is not None:
         soft_sensor = RecalibratedSoftSensor(soft_sensor, prior_n=sc.recalibrate_prior_n)
@@ -128,7 +135,7 @@ def build_system(cfg: Config, speed: float | None | str = "config") -> System:
         estimate_interval=timedelta(hours=cfg.twin.estimate_interval_h),
         reference=reference,
         class_evaluator=ClassEvaluator(sc.metals, limits, soil_correction, cfg.quality.om_per_corg),
-        components=make_components(cfg, catalog, sensors, streamed),
+        components=make_components(cfg, catalog, sensors, streamed, modelled, clean_training_readings(history)),
     )
     twin.attach(broker)
 

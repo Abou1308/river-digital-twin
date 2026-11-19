@@ -61,3 +61,11 @@ says where it applies, so it can be revisited or reversed.
   shortest window the soft sensor uses, so shorter gaps do not change its inputs. With 6 h, the weekly
   ~7-hour maintenance gaps in Lobith turbidity gave about 95 warnings in 2021-2024; with 24 h, 31 remain.
 - Gaps are measured in arrival time, so a lab result counts when it arrives, not when it was sampled.
+- Turbidity and suspended matter are checked against each other daily (`representation/turbidity_spm.py`,
+  ported from the MVP): ln(SPM) = a + b ln(1 + 24-h turbidity), fitted on 2012-2020, with a CUSUM on the
+  residuals. This catches a sensor drifting, which the metal checks cannot see.
+- The daily residuals are autocorrelated (lag-1 about 0.45), so a textbook CUSUM alarms far too often
+  (70 alarms in 2021-2024). The residuals are scaled by sqrt((1 - rho) / (1 + rho)) using the training
+  autocorrelation, and alarms are grouped into episodes (one alert, then "consistent" again after 30 quiet
+  days). Result: 4 episodes, mainly a lasting shift at Lobith from late 2023 (SPM lower than turbidity
+  implies), which the flux component's turbidity fallback should keep in mind.
