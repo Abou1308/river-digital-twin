@@ -17,24 +17,37 @@ from rdt.softsensor.estimate import MetalEstimate
 from rdt.state import Alert
 
 
+class Cusum:
+    """One two-sided CUSUM; `update` returns "up", "down" or None and resets both sums after an alarm."""
+
+    def __init__(self, delta: float = 0.5, threshold: float = 5.0) -> None:
+        self.delta = delta
+        self.threshold = threshold
+        self.up = self.down = 0.0
+
+    def update(self, z: float) -> str | None:
+        self.up = max(0.0, self.up + z - self.delta)
+        self.down = max(0.0, self.down - z - self.delta)
+        direction = "up" if self.up > self.threshold else "down" if self.down > self.threshold else None
+        if direction is not None:
+            self.up = self.down = 0.0
+        return direction
+
+
 class CusumDetector(DriftDetector):
     def __init__(self, delta: float = 0.5, threshold: float = 5.0) -> None:
         self.delta = delta
         self.threshold = threshold
-        self._sums: dict[tuple[str, str], tuple[float, float]] = {}
+        self._sums: dict[tuple[str, str], Cusum] = {}
 
     def observe(self, prior: MetalEstimate, metal: str, observed: float, censored: bool) -> Alert | None:
         if censored or observed <= 0:
             return None
         z = standardised_innovation(prior, metal, observed)
-        key = (prior.station, metal)
-        up, down = self._sums.get(key, (0.0, 0.0))
-        up, down = max(0.0, up + z - self.delta), max(0.0, down - z - self.delta)
-        direction = "up" if up > self.threshold else "down" if down > self.threshold else None
+        cusum = self._sums.setdefault((prior.station, metal), Cusum(self.delta, self.threshold))
+        direction = cusum.update(z)
         if direction is None:
-            self._sums[key] = (up, down)
             return None
-        self._sums[key] = (0.0, 0.0)
         side = "above" if direction == "up" else "below"
         return Alert(
             time_utc=prior.time_utc,
