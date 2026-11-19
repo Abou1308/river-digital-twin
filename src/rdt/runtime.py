@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import timedelta
 
@@ -24,6 +25,7 @@ from rdt.monitoring import DriftDetector, IntervalExceedanceDetector
 from rdt.monitoring.classes import ClassEvaluator
 from rdt.monitoring.cusum import CusumDetector
 from rdt.replay import Replayer, SimClock
+from rdt.representation.sensor_health import SensorHealth, nominal_intervals
 from rdt.softsensor import SoftSensor, build_table, make_soft_sensor
 from rdt.softsensor.recalibration import RecalibratedSoftSensor
 from rdt.state import InMemoryStateStore
@@ -55,13 +57,16 @@ def make_drift_detector(cfg: MonitoringConfig) -> DriftDetector:
     raise ValueError(f"Unknown drift detector '{cfg.drift}'. Options: cusum, interval_exceedance")
 
 
-def make_components(names: tuple[str, ...]) -> list[TwinComponent]:
-    """Representation-model components by name (config `twin.components`)."""
-    registry: dict[str, type[TwinComponent]] = {}
-    unknown = [n for n in names if n not in registry]
+def make_components(cfg: Config, catalog: dict[str, SensorInfo], sensors: pd.DataFrame,
+                    streamed: list[str]) -> list[TwinComponent]:
+    """Representation-model components named in `twin.components`, with their `representation` settings."""
+    factories: dict[str, Callable[[dict], TwinComponent]] = {
+        "sensor_health": lambda p: SensorHealth({s: catalog[s] for s in streamed}, nominal_intervals(sensors), **p),
+    }
+    unknown = [n for n in cfg.twin.components if n not in factories]
     if unknown:
-        raise ValueError(f"Unknown twin components {unknown}. Options: {sorted(registry)}")
-    return [registry[n]() for n in names]
+        raise ValueError(f"Unknown twin components {unknown}. Options: {sorted(factories)}")
+    return [factories[n](cfg.representation.get(n, {})) for n in cfg.twin.components]
 
 
 def build_system(cfg: Config, speed: float | None | str = "config") -> System:
@@ -123,7 +128,7 @@ def build_system(cfg: Config, speed: float | None | str = "config") -> System:
         estimate_interval=timedelta(hours=cfg.twin.estimate_interval_h),
         reference=reference,
         class_evaluator=ClassEvaluator(sc.metals, limits, soil_correction, cfg.quality.om_per_corg),
-        components=make_components(cfg.twin.components),
+        components=make_components(cfg, catalog, sensors, streamed),
     )
     twin.attach(broker)
 

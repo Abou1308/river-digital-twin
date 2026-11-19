@@ -26,7 +26,7 @@ twin:
   estimate_interval_h: 6      # how often (simulated time) the soft sensor produces a new estimate
   history_maxlen: 100000      # readings kept per sensor in the in-memory state store
   # Representation-model components (rdt/representation/), each optional; see runtime.make_components.
-  components: []
+  components: [sensor_health]
 
 softsensor:
   kind: kalman                # kalman | ridge_log | persistence
@@ -56,6 +56,13 @@ quality:
   # The lab reports organic carbon; the soil-type correction needs organic matter. 1.724 is the
   # conventional van Bemmelen factor (as in the MVP); 2.0 shifts class shares by about 1 percentage point.
   om_per_corg: 1.724
+
+# Settings per representation-model component (rdt/representation/), passed to its constructor.
+representation:
+  sensor_health:
+    stale_factor: 3       # stale after 3 x the nominal interval in sensors.csv without a reading ...
+    min_stale_h: 24       # ... but never sooner than 24 h: the shortest input window, so shorter gaps
+                          # (e.g. weekly maintenance of Lobith turbidity, ~7 h) do not affect the estimate
 
 # Station coordinates are approximate (WGS84) - verify before using for anything but display.
 stations:

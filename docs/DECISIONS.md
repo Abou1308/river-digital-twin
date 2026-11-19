@@ -51,3 +51,13 @@ says where it applies, so it can be revisited or reversed.
   name in `twin.components`. They only add to Sary's twin: removing one from the config switches it off.
 - Components write the current state of their entities to the store as `EntityState` records (latest
   only, no history) and events as Sary's `Alert` records, so the dashboard keeps reading only the store.
+
+## Sensor health
+
+- Each streamed sensor is ok, rejected (last reading failed the arrival rules) or stale
+  (`representation/sensor_health.py`). This makes data gaps part of the twin's state instead of
+  something users must spot in the charts.
+- Stale means no reading for 3 x the nominal interval in sensors.csv, but at least 24 h. 24 h is the
+  shortest window the soft sensor uses, so shorter gaps do not change its inputs. With 6 h, the weekly
+  ~7-hour maintenance gaps in Lobith turbidity gave about 95 warnings in 2021-2024; with 24 h, 31 remain.
+- Gaps are measured in arrival time, so a lab result counts when it arrives, not when it was sampled.

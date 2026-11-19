@@ -85,6 +85,7 @@ class Config:
     softsensor: SoftSensorConfig
     monitoring: MonitoringConfig
     quality: QualityConfig
+    representation: dict[str, dict[str, Any]]   # settings per twin component
     stations: dict[str, dict[str, Any]]
     reaches: list[dict[str, Any]]
     dashboard: DashboardConfig
@@ -126,6 +127,7 @@ def load_config(path: str | Path | None = None) -> Config:
             cusum_threshold=float(raw["monitoring"]["cusum"]["threshold"]),
         ),
         quality=QualityConfig(om_per_corg=float(raw["quality"]["om_per_corg"])),
+        representation=raw.get("representation") or {},
         stations=raw["stations"],
         reaches=raw.get("reaches", []),
         dashboard=DashboardConfig(**raw["dashboard"]),
