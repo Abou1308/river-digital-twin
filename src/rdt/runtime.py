@@ -8,7 +8,7 @@ from datetime import timedelta
 
 import pandas as pd
 
-from rdt.config import Config
+from rdt.config import Config, MonitoringConfig
 from rdt.data import (
     load_model_table,
     load_readings,
@@ -20,8 +20,9 @@ from rdt.data import (
 from rdt.data.schema import SensorInfo, SensorKind
 from rdt.features import LiveFeatureBuilder, max_window
 from rdt.messaging import Broker, make_broker
-from rdt.monitoring import IntervalExceedanceDetector
+from rdt.monitoring import DriftDetector, IntervalExceedanceDetector
 from rdt.monitoring.classes import ClassEvaluator
+from rdt.monitoring.cusum import CusumDetector
 from rdt.replay import Replayer, SimClock
 from rdt.softsensor import SoftSensor, build_table, make_soft_sensor
 from rdt.softsensor.recalibration import RecalibratedSoftSensor
@@ -43,6 +44,14 @@ class System:
     soft_sensor: SoftSensor
     twin: DigitalTwin
     replayer: Replayer
+
+
+def make_drift_detector(cfg: MonitoringConfig) -> DriftDetector:
+    if cfg.drift == "cusum":
+        return CusumDetector(cfg.cusum_delta, cfg.cusum_threshold)
+    if cfg.drift == "interval_exceedance":
+        return IntervalExceedanceDetector()
+    raise ValueError(f"Unknown drift detector '{cfg.drift}'. Options: cusum, interval_exceedance")
 
 
 def build_system(cfg: Config, speed: float | None | str = "config") -> System:
@@ -100,7 +109,7 @@ def build_system(cfg: Config, speed: float | None | str = "config") -> System:
         soft_sensor=soft_sensor,
         store=store,
         feature_builder=features,
-        drift_detector=IntervalExceedanceDetector(),
+        drift_detector=make_drift_detector(cfg.monitoring),
         estimate_interval=timedelta(hours=cfg.twin.estimate_interval_h),
         reference=reference,
         class_evaluator=ClassEvaluator(sc.metals, limits, soil_correction, cfg.quality.om_per_corg),

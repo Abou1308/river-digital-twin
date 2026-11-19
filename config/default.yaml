@@ -44,6 +44,12 @@ softsensor:
   # null = off.
   recalibrate_prior_n: null
 
+monitoring:
+  # Drift detector on incoming lab results: cusum (small persistent bias, rdt/monitoring/cusum.py) or
+  # interval_exceedance (3 results in a row outside the 90% range, rdt/monitoring/drift.py).
+  drift: cusum
+  cusum: {delta: 0.5, threshold: 5.0}   # textbook settings, in sd of the standardised error (as in the MVP)
+
 quality:
   # The lab reports organic carbon; the soil-type correction needs organic matter. 1.724 is the
   # conventional van Bemmelen factor (as in the MVP); 2.0 shifts class shares by about 1 percentage point.

@@ -56,6 +56,13 @@ class SoftSensorConfig:
 
 
 @dataclass(frozen=True)
+class MonitoringConfig:
+    drift: str                          # cusum | interval_exceedance
+    cusum_delta: float                  # sd of bias ignored per result
+    cusum_threshold: float              # sd of accumulated bias that raises an alarm
+
+
+@dataclass(frozen=True)
 class QualityConfig:
     om_per_corg: float                  # organic matter / organic carbon, for the soil-type correction
 
@@ -75,6 +82,7 @@ class Config:
     broker: BrokerConfig
     twin: TwinConfig
     softsensor: SoftSensorConfig
+    monitoring: MonitoringConfig
     quality: QualityConfig
     stations: dict[str, dict[str, Any]]
     reaches: list[dict[str, Any]]
@@ -110,6 +118,11 @@ def load_config(path: str | Path | None = None) -> Config:
             eval_lab_delays_d=tuple(raw["softsensor"]["eval_lab_delays_d"]),
             reference=raw["softsensor"].get("reference"),
             recalibrate_prior_n=raw["softsensor"].get("recalibrate_prior_n"),
+        ),
+        monitoring=MonitoringConfig(
+            drift=raw["monitoring"]["drift"],
+            cusum_delta=float(raw["monitoring"]["cusum"]["delta"]),
+            cusum_threshold=float(raw["monitoring"]["cusum"]["threshold"]),
         ),
         quality=QualityConfig(om_per_corg=float(raw["quality"]["om_per_corg"])),
         stations=raw["stations"],
