@@ -42,6 +42,7 @@ class BrokerConfig:
 class TwinConfig:
     estimate_interval_h: float
     history_maxlen: int
+    components: tuple[str, ...] = ()   # representation-model components, see runtime.make_components
 
 
 @dataclass(frozen=True)
@@ -109,7 +110,7 @@ def load_config(path: str | Path | None = None) -> Config:
         periods=Periods(_ts(p["train_end"]), _ts(p["replay_start"]), _ts(p["replay_end"])),
         replay=ReplayConfig(speed=raw["replay"].get("speed"), tiers=tuple(raw["replay"]["tiers"])),
         broker=BrokerConfig(kind=raw["broker"]["kind"], mqtt=raw["broker"].get("mqtt", {})),
-        twin=TwinConfig(**raw["twin"]),
+        twin=TwinConfig(**{**raw["twin"], "components": tuple(raw["twin"].get("components", ()))}),
         softsensor=SoftSensorConfig(
             kind=raw["softsensor"]["kind"],
             metals=tuple(raw["softsensor"]["metals"]),

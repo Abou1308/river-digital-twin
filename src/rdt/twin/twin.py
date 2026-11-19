@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from datetime import datetime, timedelta
 
 from rdt.data.schema import SensorInfo, SensorKind
@@ -13,6 +14,7 @@ from rdt.monitoring.classes import ClassEvaluator
 from rdt.monitoring.drift import DriftDetector
 from rdt.softsensor.base import NotReadyError, SoftSensor
 from rdt.softsensor.estimate import MetalEstimate
+from rdt.twin.components import TwinComponent
 from rdt.twin.network import RiverNetwork
 from rdt.state import LabComparison, StateStore
 
@@ -24,7 +26,8 @@ class DigitalTwin:
     """Subscribes to all sensor topics and keeps the `StateStore` up to date.
 
     Per message:
-      1. record the reading and advance simulated time to the message's arrival time;
+      1. record the reading and advance simulated time to the message's arrival time; pass it to every
+         `components` entry (all stations, see rdt/twin/components.py);
       2. if it is a turbidity / discharge / SPM reading: pass it to the feature builder;
       3. if it is a lab metal result at a modelled station (arriving after the lab turnaround, with
          time_utc = sample time): compare it with what the twin predicted *for the sample time using
@@ -34,7 +37,8 @@ class DigitalTwin:
          soil-type correction of the quality class);
       5. once all metals, lutum and organic carbon of a lab sample are in: compare the sample's quality
          class with the class probabilities predicted for the sample time (`class_evaluator`);
-      6. every `estimate_interval` of simulated time per station, produce a fresh estimate.
+      6. every `estimate_interval` of simulated time per station, produce a fresh estimate and pass it
+         to every `components` entry.
     """
 
     def __init__(
@@ -48,6 +52,7 @@ class DigitalTwin:
         estimate_interval: timedelta = timedelta(hours=6),
         reference: SoftSensor | None = None,
         class_evaluator: ClassEvaluator | None = None,
+        components: Sequence[TwinComponent] = (),
     ) -> None:
         """`reference`: a second soft sensor run alongside (same messages, same lab delays), only so
         the dashboard can show how the twin compares with it live. It does not affect the twin."""
@@ -60,6 +65,7 @@ class DigitalTwin:
         self.estimate_interval = estimate_interval
         self.reference = reference
         self.class_evaluator = class_evaluator
+        self.components = tuple(components)
         self._modelled = {s.id for s in network.modelled_stations()}
         self._last_estimate: dict[str, datetime] = {}
 
@@ -75,6 +81,8 @@ class DigitalTwin:
         now = msg.arrival_utc
         self.store.record_reading(msg)
         self.store.set_sim_time(now)
+        for component in self.components:
+            component.on_reading(info, msg, self.store)
 
         if info.station not in self._modelled:
             return
@@ -139,6 +147,8 @@ class DigitalTwin:
         if est is not None:
             self.store.record_estimate(est)
             self._last_estimate[station] = t
+            for component in self.components:
+                component.on_estimate(est, self.store)
             if self.reference is not None:
                 ref = self._predict(station, t, feats, sensor=self.reference)
                 if ref is not None:

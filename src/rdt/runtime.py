@@ -28,6 +28,7 @@ from rdt.softsensor import SoftSensor, build_table, make_soft_sensor
 from rdt.softsensor.recalibration import RecalibratedSoftSensor
 from rdt.state import InMemoryStateStore
 from rdt.twin import DigitalTwin, RiverNetwork
+from rdt.twin.components import TwinComponent
 
 log = logging.getLogger(__name__)
 
@@ -52,6 +53,15 @@ def make_drift_detector(cfg: MonitoringConfig) -> DriftDetector:
     if cfg.drift == "interval_exceedance":
         return IntervalExceedanceDetector()
     raise ValueError(f"Unknown drift detector '{cfg.drift}'. Options: cusum, interval_exceedance")
+
+
+def make_components(names: tuple[str, ...]) -> list[TwinComponent]:
+    """Representation-model components by name (config `twin.components`)."""
+    registry: dict[str, type[TwinComponent]] = {}
+    unknown = [n for n in names if n not in registry]
+    if unknown:
+        raise ValueError(f"Unknown twin components {unknown}. Options: {sorted(registry)}")
+    return [registry[n]() for n in names]
 
 
 def build_system(cfg: Config, speed: float | None | str = "config") -> System:
@@ -113,6 +123,7 @@ def build_system(cfg: Config, speed: float | None | str = "config") -> System:
         estimate_interval=timedelta(hours=cfg.twin.estimate_interval_h),
         reference=reference,
         class_evaluator=ClassEvaluator(sc.metals, limits, soil_correction, cfg.quality.om_per_corg),
+        components=make_components(cfg.twin.components),
     )
     twin.attach(broker)
 

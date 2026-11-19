@@ -136,3 +136,32 @@ def test_class_comparison_per_complete_sample(cfg, catalog, train_table):
     for ref in (False, True):
         s = score_class_comparisons(store.class_comparisons("lobith"), reference=ref)
         assert s["n"] == 1 and s["accuracy"] == 1.0
+
+
+def test_components_see_all_readings_and_estimates(cfg, catalog, train_table):
+    """A component hears every reading, also from stations the soft sensor does not model, and every
+    estimate; what it writes to the store is readable as entity state."""
+    from rdt.state import EntityState
+    from rdt.twin.components import TwinComponent
+
+    class Recorder(TwinComponent):
+        def __init__(self):
+            self.stations, self.estimates = set(), 0
+
+        def on_reading(self, info, msg, store):
+            self.stations.add(info.station)
+            store.record_entity(EntityState("station_seen", info.station, msg.arrival_utc, {"last": msg.value}))
+
+        def on_estimate(self, est, store):
+            self.estimates += 1
+
+    sensor = PersistenceSoftSensor(METALS)
+    sensor.fit(train_table, START)
+    store, broker, rec = InMemoryStateStore(), InMemoryBroker(), Recorder()
+    DigitalTwin(RiverNetwork.from_config(cfg, catalog), catalog, sensor, store, components=[rec]).attach(broker)
+    Replayer(_readings(), catalog, broker, SimClock(START, speed=None)).run()
+
+    assert rec.stations == {"lobith", "kampen"}
+    assert rec.estimates == len(store.estimates("lobith"))
+    assert store.entity("station_seen", "kampen").values == {"last": 400.0}
+    assert set(store.entities("station_seen")) == {"lobith", "kampen"}

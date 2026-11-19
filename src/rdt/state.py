@@ -11,7 +11,7 @@ import threading
 from collections import defaultdict, deque
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Protocol
+from typing import Any, Protocol
 
 from rdt.messaging.messages import SensorMessage
 from rdt.softsensor.estimate import MetalEstimate
@@ -53,6 +53,17 @@ class ClassComparison:
     reference_probabilities: dict[str, float] | None = None
 
 
+@dataclass(frozen=True)
+class EntityState:
+    """Current state of one entity of the representation model, written by a twin component
+    (rdt.twin.components), e.g. kind "reach", id "maas_eijsden_keizersveer"."""
+
+    kind: str
+    id: str
+    time_utc: datetime
+    values: dict[str, Any]
+
+
 class StateStore(Protocol):
     def record_reading(self, msg: SensorMessage) -> None: ...
     def record_estimate(self, est: MetalEstimate) -> None: ...
@@ -60,6 +71,7 @@ class StateStore(Protocol):
     def record_comparison(self, cmp: LabComparison) -> None: ...
     def record_class_comparison(self, cmp: ClassComparison) -> None: ...
     def record_alert(self, alert: Alert) -> None: ...
+    def record_entity(self, state: EntityState) -> None: ...
     def set_sim_time(self, t: datetime) -> None: ...
 
     def sim_time(self) -> datetime | None: ...
@@ -70,6 +82,8 @@ class StateStore(Protocol):
     def comparisons(self, station: str) -> list[LabComparison]: ...
     def class_comparisons(self, station: str) -> list[ClassComparison]: ...
     def alerts(self, limit: int = 50) -> list[Alert]: ...
+    def entity(self, kind: str, entity_id: str) -> EntityState | None: ...
+    def entities(self, kind: str) -> dict[str, EntityState]: ...
 
 
 class InMemoryStateStore:
@@ -83,6 +97,7 @@ class InMemoryStateStore:
         self._comparisons: dict[str, list[LabComparison]] = defaultdict(list)
         self._class_comparisons: dict[str, list[ClassComparison]] = defaultdict(list)
         self._alerts: deque[Alert] = deque(maxlen=1000)
+        self._entities: dict[tuple[str, str], EntityState] = {}
         self._sim_time: datetime | None = None
 
     # -- writes ---------------------------------------------------------------------------
@@ -109,6 +124,11 @@ class InMemoryStateStore:
     def record_alert(self, alert: Alert) -> None:
         with self._lock:
             self._alerts.append(alert)
+
+    def record_entity(self, state: EntityState) -> None:
+        """Keep the latest state per entity (no history)."""
+        with self._lock:
+            self._entities[(state.kind, state.id)] = state
 
     def set_sim_time(self, t: datetime) -> None:
         with self._lock:
@@ -157,3 +177,11 @@ class InMemoryStateStore:
     def alerts(self, limit: int = 50) -> list[Alert]:
         with self._lock:
             return list(self._alerts)[-limit:][::-1]
+
+    def entity(self, kind: str, entity_id: str) -> EntityState | None:
+        with self._lock:
+            return self._entities.get((kind, entity_id))
+
+    def entities(self, kind: str) -> dict[str, EntityState]:
+        with self._lock:
+            return {i: s for (k, i), s in self._entities.items() if k == kind}

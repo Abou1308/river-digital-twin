@@ -25,6 +25,8 @@ broker:
 twin:
   estimate_interval_h: 6      # how often (simulated time) the soft sensor produces a new estimate
   history_maxlen: 100000      # readings kept per sensor in the in-memory state store
+  # Representation-model components (rdt/representation/), each optional; see runtime.make_components.
+  components: []
 
 softsensor:
   kind: kalman                # kalman | ridge_log | persistence
