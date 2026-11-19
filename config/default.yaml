@@ -66,6 +66,7 @@ representation:
   turbidity_spm:           # CUSUM on the daily residual of the training turbidity-SPM relation (as in the MVP)
     delta: 0.5
     threshold: 5.0
+    quiet_days: 30        # a drift episode ends after 30 days without a new alarm
 
 # Station coordinates are approximate (WGS84) - verify before using for anything but display.
 stations:

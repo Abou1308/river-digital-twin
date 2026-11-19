@@ -69,3 +69,31 @@ says where it applies, so it can be revisited or reversed.
   autocorrelation, and alarms are grouped into episodes (one alert, then "consistent" again after 30 quiet
   days). Result: 4 episodes, mainly a lasting shift at Lobith from late 2023 (SPM lower than turbidity
   implies), which the flux component's turbidity fallback should keep in mind.
+
+## Input assumptions for the reaches (researched, not yet used)
+
+Values for the reach and deposit components, from a literature search on 2026-11-19. [S] = read in the
+source, [I] = inferred.
+
+- Rhine split at the Pannerdensche Kop / IJsselkop, as fractions of Lobith discharge [S]: very low flow
+  (680 m3/s) Waal 0.82, Nederrijn 0.02, IJssel 0.16; low (1300) 0.80 / 0.02 / 0.18; mean (2480) 0.69 /
+  0.16 / 0.15; design flood (16,000) 0.635 / 0.211 / 0.154. Weir Driel keeps the IJssel at about
+  285-350 m3/s at low flow. Suspended sediment divides roughly like the water (Frings 2005); bed load
+  does not. Sources: Rijkswaterstaat waterverdeling maps (iplo.nl), Tienjarig Overzicht 1981-1990,
+  verkenning afvoerverdeling Rijntakken (open.rijkswaterstaat.nl), Frings 2005 (dspace.library.uu.nl/handle/1874/11331).
+- Distances [S]: Lobith km 862.2, IJsselkop km 878.5, Kampen km 994.5, so Lobith -> Kampen about 132 km.
+  Eijsden km 2.6, Keizersveer km 247.6 on the Maas, so about 245 km. Sources: Rijkswaterstaat
+  betrekkingslijnen Rijn 2022, kenmerkende waarden Maas 1991-2015.
+- Travel times [I]: Lobith -> Kampen about 2 days at mean flow (1 at high, 3-4 at low). Eijsden ->
+  Keizersveer about 1 week at mean flow, 2-3 days at high flow, 3-6 weeks at low flow (weir pools).
+  KWR (BTO 2016.105) estimates travel time as length x cross-section / discharge.
+- Tributaries [S]: between Eijsden and Keizersveer about 85 m3/s in total (Roer 23, Dommel 12.5, Niers 8,
+  Aa 7, Geul 3.4) against about 230 m3/s in the Maas; the Geul carries Zn, Pb and Cd from old mines.
+  Deltares (2008) found metal contents at Keizersveer generally lower than at Eijsden. IJssel tributaries
+  are under about 5% of its mean flow.
+- Fresh deposit [S/I]: Rijkswaterstaat / Deltares state that riverbed quality is set by the quality of
+  the suspended matter that settles. No source gives a 30-day memory; deposition is episodic (floods)
+  and harbours integrate months to years. Plan: keep 30 days as the default and test 14-90 days.
+- Organic matter from organic carbon [S]: Dutch practice uses 1.724 (origin unclear); Van den Berg
+  (H2O 1998, for STOWA) found 1.97 for freshwater sediments (literature range 1.8-2.4). The Regeling
+  bodemkwaliteit asks for organic matter measured by loss on ignition (NEN 5754), not converted.
