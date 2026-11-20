@@ -130,6 +130,22 @@ says where it applies, so it can be revisited or reversed.
   no bed sampling in the data to check it against. The downstream SPM samples (Keizersveer, Kampen) are
   the nearest check.
 
+## Downstream check
+
+- Lab results at Keizersveer and Kampen (quarterly) are compared with the upstream estimate one travel
+  time earlier, times a learned factor per reach and metal (`representation/downstream.py`). The factor
+  is the median log ratio downstream / upstream over training lab pairs (2012-2020, 37-53 pairs). It
+  absorbs tributary dilution and sorting. Maas: Cd 0.77, Cu 0.91, Ni 1.10, Pb 1.20, Zn 0.96;
+  IJssel: Cd 1.23, others 0.96-1.03.
+- Results are stored as `LabComparison` records for the downstream station, and a result outside the
+  95% range raises a "downstream_mismatch" alert (7 in 2021-2024).
+- This needs the "optional" sensor tier streamed (`replay.tiers: [core, optional]`); it also streams the
+  water samples at Eijsden and Lobith, which nothing uses yet and which raised no data-gap alerts.
+- Result on 2021-2024: inside the 90% range 92% (Keizersveer) and 95% (Kampen). At Kampen the upstream
+  estimate is closer than the last Kampen lab value (median error 9% vs 15%). At Keizersveer it is not
+  (17% vs 9%): Maas sediment at Keizersveer is much steadier than at Eijsden. Averaging Eijsden over
+  longer windows helps (90 days: about 10%), which suggests the Maas reach integrates months, not days.
+
 ## Input assumptions for the reaches (researched, now used by the reach component)
 
 Values for the reach and deposit components, from a literature search on 2026-11-19. [S] = read in the
