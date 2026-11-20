@@ -1,0 +1,14 @@
+Deposit memory sensitivity, 2021-2024. time <class>: share of 6-h steps with that reported class.
+downstream |log err|: deposit median vs downstream lab, level removed per metal (see docstring).
+
+                   reach  memory (days)  class changes  time clean  time slightly  time moderately  time heavily  downstream |log err|  persistence |log err|  downstream n
+maas_eijsden_keizersveer             10             18         0.0          0.532            0.468           0.0                 0.128                  0.085           125
+maas_eijsden_keizersveer             14             13         0.0          0.546            0.454           0.0                 0.106                  0.085           125
+maas_eijsden_keizersveer             30              7         0.0          0.732            0.268           0.0                 0.083                  0.085           125
+maas_eijsden_keizersveer             60              3         0.0          0.861            0.139           0.0                 0.084                  0.085           125
+maas_eijsden_keizersveer             90              3         0.0          0.867            0.133           0.0                 0.088                  0.085           125
+      rijn_lobith_kampen             10             22         0.0          0.788            0.212           0.0                 0.098                  0.148            75
+      rijn_lobith_kampen             14             18         0.0          0.801            0.199           0.0                 0.107                  0.148            75
+      rijn_lobith_kampen             30             12         0.0          0.858            0.142           0.0                 0.093                  0.148            75
+      rijn_lobith_kampen             60              6         0.0          0.903            0.097           0.0                 0.108                  0.148            75
+      rijn_lobith_kampen             90              4         0.0          0.941            0.059           0.0                 0.094                  0.148            75
