@@ -2,6 +2,13 @@
 
 What the dashboard shows (kept here rather than as text on the page):
 
+River network map: modelled stations coloured by the most likely class of their suspended sediment (as in
+the quality-class panel), reaches coloured by the reported class of their fresh deposit
+(rdt/representation/reach.py, with hysteresis), downstream stations in grey. Clicking a reach or station
+shows that reach's current state beside the map: the upstream regime, discharge entering the reach, the
+suspended matter and sediment load, the metal flux, and the deposit's content (median and 90% range of
+the joint draws) and class probabilities.
+
 Main chart, top panel: the twin's estimate of the selected metal in suspended sediment at the selected
 station (median, solid line), lab results (points; white = below detection limit), the last lab value
 that was known at each moment (dashed: what you would have without the twin; it steps when a result
@@ -41,7 +48,7 @@ from rdt.dashboard import views
 from rdt.monitoring.classes import score_class_comparisons
 from rdt.quality import QUALITY_CLASSES
 from rdt.data.cleaning import passes_arrival_rules
-from rdt.state import ClassComparison, StateStore
+from rdt.state import ClassComparison, EntityState, StateStore
 from rdt.twin.network import RiverNetwork
 
 TITLE = "Digital Twin of Heavy-Metal Transport Via Suspended Sediments: In the Rhine & Maas"
@@ -111,6 +118,60 @@ def _class_station(station: str, summary: views.ClassSummary, comparisons: list[
     return html.Div(body, className="class-station")
 
 
+def _reach_facts(values: dict, regime: EntityState | None) -> list[str]:
+    facts = []
+    if regime is not None:
+        facts.append(f"Upstream regime: {regime.values['regime']}")
+    if "sediment_load_t_per_d" in values:
+        facts.append(f"Discharge into the reach {values['discharge_m3s']:,.0f} m³/s "
+                     f"({values['share']:.0%} of the upstream discharge)")
+        facts.append(f"Suspended matter {values['spm_mg_l']:.0f} mg/l (from {values['spm_source']}), "
+                     f"sediment load {values['sediment_load_t_per_d']:,.0f} t/day")
+    else:
+        facts.append(f"No flux at this step (suspended matter: {values.get('spm_source', 'none')})")
+    return facts
+
+
+def _reach_table(values: dict) -> html.Table:
+    flux = values.get("metal_flux_kg_per_d", {})
+    rows = [html.Tr([html.Th("metal"), html.Th("flux (kg/day)"), html.Th("deposit median (mg/kg)"),
+                     html.Th("deposit 90% range")])]
+    for m, median in values["deposit_median"].items():
+        rows.append(html.Tr([
+            html.Td(m.upper()),
+            html.Td(f"{flux[m]:,.1f}" if m in flux else "–"),
+            html.Td(f"{median:.3g}"),
+            html.Td(f"{values['deposit_p05'][m]:.3g} – {values['deposit_p95'][m]:.3g}"),
+        ]))
+    return html.Table(rows, className="reach-table")
+
+
+def _reach_panel(label: str, reach: EntityState | None, regime: EntityState | None) -> html.Div:
+    """Flux and fresh deposit of one reach, from its entity state and its upstream station's regime."""
+    if reach is None:
+        return html.Div([html.Strong(label), html.Div("No data for this reach yet.", className="muted")],
+                        className="reach-panel")
+    v = reach.values
+    cls = v.get("class")
+    heading = html.Div(className="class-heading", children=[
+        html.Span(className="class-dot", style={"background": views.CLASS_COLOURS.get(cls)}),
+        html.Strong(label),
+        html.Span(f"{reach.time_utc:%Y-%m-%d %H:%M} UTC", className="muted"),
+    ])
+    body = [heading, html.Ul([html.Li(f) for f in _reach_facts(v, regime)], className="reach-facts")]
+    if "deposit_median" not in v:
+        body.append(html.Div("Fresh deposit: no sediment has arrived yet.", className="muted"))
+        return html.Div(body, className="reach-panel")
+    body.append(html.Div(f"Fresh deposit: {cls}" if cls else f"Fresh deposit: {v.get('class_reason', 'no class')}",
+                         className="reach-subhead"))
+    if "class_probabilities" in v:
+        body.append(_class_bar(v["class_probabilities"]))
+        body.append(html.Div(f"Load-weighted lutum {v['deposit_lutum_pct']:.1f}%, organic carbon "
+                             f"{v['deposit_corg_pct']:.1f}%", className="muted"))
+    body.append(_reach_table(v))
+    return html.Div(body, className="reach-panel")
+
+
 def _class_legend() -> html.Div:
     return html.Div(className="class-legend muted", children=[
         html.Span([html.Span(className="class-dot", style={"background": views.CLASS_COLOURS[c]}), c])
@@ -156,6 +217,15 @@ def create_app(
         html.Header(className="header", children=[
             html.H1(TITLE),
             html.Div(id="sim-clock", className="clock"),
+        ]),
+        html.Section(className="card", children=[
+            html.H3("River network: suspended sediment at the stations, fresh deposit along the reaches"),
+            _class_legend(),
+            html.Div(className="grid-2", children=[
+                dcc.Graph(id="network-map", style={"height": "480px"},
+                          config={"displaylogo": False, "scrollZoom": True}),
+                html.Div(id="reach-details"),
+            ]),
         ]),
         html.Section(className="card", children=[
             html.Div(className="controls", children=[
@@ -287,4 +357,30 @@ def create_app(
     def class_panel(_n):
         return [_class_station(s, station_summary(s), store.class_comparisons(s)) for s in modelled]
 
+    @app.callback(
+        Output("network-map", "figure"),
+        Output("reach-details", "children"),
+        Input("live-tick", "data"),
+        Input("network-map", "clickData"),
+    )
+    def network_panel(_n, click):
+        if not network.reaches:
+            return views.network_map(network, {}, {}, {}), html.Div("No reaches configured.", className="muted")
+        station_class = {s: station_summary(s).most_likely for s in modelled}
+        reaches, regimes = store.entities("reach"), store.entities("regime")
+        reach_class = {rid: e.values.get("class") for rid, e in reaches.items()}
+        fig = views.network_map(network, station_class, reach_class,
+                                views.map_hover(network, station_class, regimes, reaches))
+        selected = _clicked_reach(click) or network.reaches[0].id
+        reach = next(r for r in network.reaches if r.id == selected)
+        details = _reach_panel(views.reach_label(network, reach), reaches.get(reach.id),
+                               regimes.get(reach.upstream))
+        return fig, details
+
     return app
+
+
+def _clicked_reach(click: dict | None) -> str | None:
+    """Reach id of the clicked map point (see `views.network_map`), or None."""
+    points = (click or {}).get("points") or []
+    return points[0].get("customdata") if points else None

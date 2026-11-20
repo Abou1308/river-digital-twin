@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import date, datetime, time
 
@@ -13,8 +13,8 @@ import plotly.graph_objects as go
 from rdt.messaging.messages import SensorMessage
 from rdt.quality import sample_class_probabilities
 from rdt.softsensor.estimate import MetalEstimate
-from rdt.state import Alert, LabComparison
-from rdt.twin.network import RiverNetwork
+from rdt.state import Alert, EntityState, LabComparison
+from rdt.twin.network import Reach, RiverNetwork
 
 # Quality-class colours (clean -> heavily contaminated); grey = no estimate yet.
 CLASS_COLOURS = {
@@ -28,46 +28,81 @@ CLASS_COLOURS = {
 CLASS_TEXT_COLOURS = {cls: "#14273a" if cls == "slightly contaminated" else "#ffffff" for cls in CLASS_COLOURS}
 
 
-def network_map(network: RiverNetwork, station_class: dict[str, str | None]) -> go.Figure:
-    """Stations as markers coloured by most likely class; reaches as lines.
+def network_map(network: RiverNetwork, station_class: Mapping[str, str | None],
+                reach_class: Mapping[str, str | None], hover: Mapping[str, str]) -> go.Figure:
+    """Reaches as lines coloured by their fresh deposit's class, modelled stations as markers coloured by
+    the most likely class of their suspended sediment, downstream stations as small grey markers.
 
-    Not shown on the dashboard yet: it only becomes useful once it can show the contamination carried
-    along the river (estimated metal levels / fluxes per reach).
-
-    TODO: draw reaches along the actual river geometry (e.g. from a GeoJSON) instead of straight lines,
-    and colour reaches by their predicted class once the representation model propagates fluxes.
-    """
+    `hover`: station or reach id -> hover text. Every point carries the id of a reach in `customdata`
+    (a station: the first reach it belongs to), so a click on the map selects a reach.
+    Reaches are drawn as straight lines between their stations."""
     fig = go.Figure()
     for r in network.reaches:
         up, down = network.stations[r.upstream], network.stations[r.downstream]
-        fig.add_trace(
-            go.Scattermap(
-                lat=[up.lat, down.lat], lon=[up.lon, down.lon], mode="lines",
-                line={"width": 3, "color": "#5c8fbf"}, name=r.id, hoverinfo="name", showlegend=False,
-            )
-        )
+        cls = reach_class.get(r.id)
+        fig.add_trace(go.Scattermap(
+            lat=[up.lat, down.lat], lon=[up.lon, down.lon], mode="lines",
+            line={"width": 6, "color": CLASS_COLOURS.get(cls, CLASS_COLOURS[None])},
+            customdata=[r.id, r.id], hovertext=[hover.get(r.id, r.id)] * 2, hoverinfo="text",
+            name=r.id, showlegend=False,
+        ))
     stations = list(network.stations.values())
-    classes = [station_class.get(s.id) for s in stations]
-    fig.add_trace(
-        go.Scattermap(
-            lat=[s.lat for s in stations],
-            lon=[s.lon for s in stations],
-            mode="markers+text",
-            marker={"size": [16 if s.is_modelled else 10 for s in stations],
-                    "color": [CLASS_COLOURS.get(c, CLASS_COLOURS[None]) for c in classes]},
-            text=[s.id.capitalize() for s in stations],
-            textposition="top right",
-            customdata=[s.id for s in stations],
-            hovertext=[f"{s.id} ({s.river})<br>class: {c or 'n/a'}" for s, c in zip(stations, classes)],
-            hoverinfo="text",
-            showlegend=False,
-        )
-    )
+    reach_of = {}
+    for r in network.reaches:
+        reach_of.setdefault(r.upstream, r.id)
+        reach_of.setdefault(r.downstream, r.id)
+    fig.add_trace(go.Scattermap(
+        lat=[s.lat for s in stations],
+        lon=[s.lon for s in stations],
+        mode="markers+text",
+        marker={"size": [18 if s.is_modelled else 10 for s in stations], "opacity": 1,
+                "color": [CLASS_COLOURS.get(station_class.get(s.id), CLASS_COLOURS[None]) if s.is_modelled
+                          else "#5b6b7b" for s in stations]},
+        text=[s.id.capitalize() for s in stations],
+        textposition="top right",
+        # Map labels are drawn with the basemap's glyph fonts; the page font is not available there.
+        textfont={"size": 13, "color": "#14273a"},
+        customdata=[reach_of.get(s.id) for s in stations],
+        hovertext=[hover.get(s.id, s.id) for s in stations],
+        hoverinfo="text",
+        showlegend=False,
+    ))
+    lats, lons = [s.lat for s in stations], [s.lon for s in stations]
+    centre = {"lat": (min(lats) + max(lats)) / 2, "lon": (min(lons) + max(lons)) / 2}
     fig.update_layout(
-        map={"style": "open-street-map", "center": {"lat": 51.7, "lon": 5.6}, "zoom": 6.3},
-        margin={"l": 0, "r": 0, "t": 0, "b": 0},
+        map={"style": "open-street-map", "center": centre, "zoom": 6.1},
+        margin={"l": 0, "r": 0, "t": 0, "b": 0}, uirevision="map", clickmode="event",
+        hoverlabel={"font": {"family": FONT}},
     )
     return fig
+
+
+def reach_label(network: RiverNetwork, reach: Reach) -> str:
+    up, down = network.stations[reach.upstream], network.stations[reach.downstream]
+    return f"{reach.river}: {up.id.capitalize()} → {down.id.capitalize()}"
+
+
+def map_hover(network: RiverNetwork, station_class: Mapping[str, str | None],
+              regimes: Mapping[str, EntityState], reaches: Mapping[str, EntityState]) -> dict[str, str]:
+    """Hover text per station and reach id for `network_map`."""
+    out = {}
+    for s in network.stations.values():
+        lines = [f"<b>{s.id.capitalize()}</b> ({s.river})"]
+        if s.is_modelled:
+            if (reg := regimes.get(s.id)) is not None:
+                lines.append(f"regime: {reg.values['regime']} (24-h discharge {reg.values['q24']:,.0f} m³/s)")
+            lines.append(f"suspended sediment: {station_class.get(s.id) or 'no class yet'}")
+        else:
+            lines.append("downstream lab samples (end of reach)")
+        out[s.id] = "<br>".join(lines)
+    for r in network.reaches:
+        lines = [f"<b>{reach_label(network, r)}</b>"]
+        values = reaches[r.id].values if r.id in reaches else {}
+        lines.append(f"fresh deposit: {values.get('class', 'not yet known')}")
+        if "sediment_load_t_per_d" in values:
+            lines.append(f"sediment load {values['sediment_load_t_per_d']:,.0f} t/day")
+        out[r.id] = "<br>".join(lines)
+    return out
 
 
 class EstimateSeries:

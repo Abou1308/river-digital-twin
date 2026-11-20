@@ -170,3 +170,37 @@ body {
 .Select-control, .Select-menu-outer, .Select-value-label, .Select-option {
   font-family: var(--font);
 }
+
+/* river network: detail panel of the selected reach beside the map */
+.reach-panel > * + * {
+  margin-top: 10px;
+}
+
+.reach-facts {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.9rem;
+}
+
+.reach-subhead {
+  font-weight: 600;
+  color: #0a2440;
+}
+
+.reach-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.reach-table th, .reach-table td {
+  text-align: left;
+  padding: 5px 8px;
+  border-bottom: 1px solid #dfe8f1;
+}
+
+.reach-table th {
+  font-weight: 600;
+  background: #e8f0f8;
+  border-bottom: 1px solid #7d93a8;
+}
