@@ -102,7 +102,35 @@ says where it applies, so it can be revisited or reversed.
 - Regime changes are stored as `Alert` records (kind "regime_transition", severity info), since Sary's
   store has no separate event log. A separate event log would change the store interface; not done.
 
-## Input assumptions for the reaches (researched, not yet used)
+## Reaches and fresh deposit
+
+- Each reach (`representation/reach.py`) gets, every 6 h, the sediment load from its upstream station:
+  share x 24-h mean discharge x SPM. The reach settings (travel time, share table) live in the
+  component's config (`representation.reach.reaches`), not in Sary's `Reach`, so the component can be
+  removed without touching the network.
+- Rhine split: the IJssel share is interpolated on Lobith discharge in the researched table (below);
+  suspended sediment is assumed to divide like the water. The Maas reach takes all of Eijsden's flow;
+  its tributaries are not modelled (the downstream comparison is meant to learn the dilution).
+- Travel time is fixed per reach at its mean-flow value (Maas 7 days, IJssel 2 days). It only delays
+  inputs to a deposit with a 30-day memory, so the low-flow travel times of the Maas (3-6 weeks) are
+  the main case where this is wrong.
+- SPM is the latest daily composite (at most 48 h old), otherwise estimated from turbidity with the
+  training relation. In 2021-2024 the turbidity fallback was used for 30% of steps at Eijsden and 4%
+  at Lobith. At Lobith that relation overestimates SPM since late 2023 (see Sensor health).
+- The fresh deposit (`representation/deposit.py`, ported from the MVP) is the load-weighted average
+  metal content with a 30-day exponential memory. Prediction errors are treated as fully correlated in
+  time, so averaging does not narrow the deposit's range; this is the conservative choice.
+- The deposit's class uses load-weighted averages of lutum and organic carbon over the same memory. With
+  the last single lab value, the class jumped with every sample (71 class changes in 2021-2024 even with
+  hysteresis); with averages, 19. The averages are rounded to 0.5 percentage points so the corrected
+  limits can be reused; that is within lab precision.
+- The reported class changes only when another class has probability >= 0.6 (hysteresis). Without it,
+  a deposit near a boundary flipped weekly. 0.6 was chosen before looking at the results.
+- The deposit is a proxy, not a prediction of a measured bed sample: there is no transport physics and
+  no bed sampling in the data to check it against. The downstream SPM samples (Keizersveer, Kampen) are
+  the nearest check.
+
+## Input assumptions for the reaches (researched, now used by the reach component)
 
 Values for the reach and deposit components, from a literature search on 2026-11-19. [S] = read in the
 source, [I] = inferred.
