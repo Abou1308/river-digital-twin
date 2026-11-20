@@ -43,8 +43,8 @@ softsensor:
   reference: persistence
   # Online recalibration of the prediction ranges from the lab results received so far
   # (rdt/softsensor/recalibration.py): the weight, in lab results, of the training calibration.
-  # null = off.
-  recalibrate_prior_n: null
+  # null = off. On by default: it halves the range error on 2021-2025 (analysis/07_calibration_options.py).
+  recalibrate_prior_n: 20
   # How fast the Kalman level follows new lab results: variogram (Sary's fit) or one_step (the level
   # drift rescaled to minimise training one-step-ahead error; see rdt/softsensor/kalman.py).
   kalman_noise_fit: variogram
