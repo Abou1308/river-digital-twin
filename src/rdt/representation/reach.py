@@ -31,7 +31,7 @@ import numpy as np
 import pandas as pd
 
 from rdt.data.cleaning import passes_arrival_rules
-from rdt.quality import QUALITY_CLASSES, draws_class_probabilities
+from rdt.quality import QUALITY_CLASSES, draws_class_probabilities, metal_limits
 from rdt.representation.deposit import Deposit
 from rdt.representation.turbidity_spm import MIN_READINGS, TurbiditySpmRelation
 from rdt.softsensor.estimate import MetalEstimate
@@ -103,6 +103,8 @@ class ReachState(TwinComponent):
             for r in reaches
         ]
         self._last_estimate: dict[str, pd.Timestamp] = {}
+        # Soil-corrected limits per upstream station, recomputed only when lutum / organic carbon change.
+        self._limits: dict[str, tuple[tuple[float, float], list[pd.DataFrame]]] = {}
 
     def on_estimate(self, est: MetalEstimate, store: StateStore) -> None:
         st, t = est.station, pd.Timestamp(est.time_utc)
@@ -157,8 +159,11 @@ class ReachState(TwinComponent):
         if lutum is None or corg is None:
             out["class_reason"] = "no lab lutum / organic carbon yet"
             return out
-        probs = draws_class_probabilities(draws, metals, self.limits, self.soil_correction, lutum.value,
-                                          self.om_per_corg * corg.value)
+        key = (lutum.value, corg.value)
+        if st not in self._limits or self._limits[st][0] != key:
+            self._limits[st] = (key, metal_limits(metals, self.limits, self.soil_correction, lutum.value,
+                                                  self.om_per_corg * corg.value))
+        probs = draws_class_probabilities(draws, self._limits[st][1])
         out |= {"class_probabilities": probs, "most_likely_class": max(probs, key=probs.get)}
         return out
 

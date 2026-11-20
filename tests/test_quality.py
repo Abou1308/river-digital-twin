@@ -13,6 +13,7 @@ from rdt.quality import (
     class_probabilities,
     corrected_limits,
     draws_class_probabilities,
+    metal_limits,
     sample_class,
     sample_class_probabilities,
 )
@@ -125,7 +126,7 @@ def test_overall_class_is_worst_metal_from_joint_draws():
 
 def test_draws_class_probabilities_takes_worst_metal_per_draw():
     draws = np.array([[0.5, 100.0], [0.5, 200.0], [5.0, 100.0], [5.0, 3000.0]])   # cd, zn in mg/kg
-    p = draws_class_probabilities(draws, ("cd", "zn"), LIMITS, SOIL, 25, 10)
+    p = draws_class_probabilities(draws, metal_limits(("cd", "zn"), LIMITS, SOIL, 25, 10))
     assert p == {"clean": 0.25, "slightly contaminated": 0.25, "moderately contaminated": 0.25,
                  "heavily contaminated": 0.25}
 

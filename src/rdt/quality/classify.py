@@ -100,24 +100,24 @@ def _class_draws(
     if not np.all(np.isfinite(estimate.mean_log)):
         missing = [m for m, v in zip(estimate.metals, estimate.mean_log) if not np.isfinite(v)]
         raise ValueError(f"Estimate at {estimate.station} has no value for {missing}; cannot classify.")
-    return _classes_of_draws(estimate.sample(n_draws, rng), estimate.metals, limits, soil_correction,
-                             lutum_pct, om_pct)
+    corrected = metal_limits(estimate.metals, limits, soil_correction, lutum_pct, om_pct)
+    return _classes_of_draws(estimate.sample(n_draws, rng), corrected)
 
 
-def _classes_of_draws(
-    draws: np.ndarray,
+def metal_limits(
     metals: Sequence[str],
     limits: pd.DataFrame,
     soil_correction: pd.DataFrame,
     lutum_pct: float,
     om_pct: float,
-) -> np.ndarray:
+) -> list[pd.DataFrame]:
+    """`corrected_limits` for each metal, in order; worth reusing while lutum and OM stay the same."""
+    return [corrected_limits(limits, soil_correction, m.capitalize(), lutum_pct, om_pct) for m in metals]
+
+
+def _classes_of_draws(draws: np.ndarray, corrected: Sequence[pd.DataFrame]) -> np.ndarray:
     """Class index per draw and metal for draws in mg/kg dw, shape (n_draws, n_metals)."""
-    classes = np.empty(draws.shape, dtype=int)
-    for j, metal in enumerate(metals):
-        cl = corrected_limits(limits, soil_correction, metal.capitalize(), lutum_pct, om_pct)
-        classes[:, j] = assign_class(draws[:, j], cl)
-    return classes
+    return np.column_stack([assign_class(draws[:, j], cl) for j, cl in enumerate(corrected)])
 
 
 def _shares(classes: np.ndarray) -> dict[str, float]:
@@ -159,16 +159,10 @@ def sample_class_probabilities(
     return _shares(classes.max(axis=1))
 
 
-def draws_class_probabilities(
-    draws: np.ndarray,
-    metals: Sequence[str],
-    limits: pd.DataFrame,
-    soil_correction: pd.DataFrame,
-    lutum_pct: float,
-    om_pct: float,
-) -> dict[str, float]:
-    """{class: probability} for joint draws in mg/kg dw (n_draws, n_metals): per draw, the worst class."""
-    return _shares(_classes_of_draws(draws, metals, limits, soil_correction, lutum_pct, om_pct).max(axis=1))
+def draws_class_probabilities(draws: np.ndarray, corrected: Sequence[pd.DataFrame]) -> dict[str, float]:
+    """{class: probability} for joint draws in mg/kg dw (n_draws, n_metals), given `metal_limits` for the
+    same metals: per draw, the worst class."""
+    return _shares(_classes_of_draws(draws, corrected).max(axis=1))
 
 
 def reuse_applications(quality_class: str) -> list[str]:
