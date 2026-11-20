@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -28,7 +29,8 @@ from rdt.monitoring.cusum import CusumDetector
 from rdt.replay import Replayer, SimClock
 from rdt.representation.regime import HydroRegime, fit_thresholds
 from rdt.representation.sensor_health import SensorHealth, nominal_intervals
-from rdt.representation.turbidity_spm import TurbiditySpmCheck, fit_relation
+from rdt.representation.reach import ReachSettings, ReachState
+from rdt.representation.turbidity_spm import TurbiditySpmCheck, TurbiditySpmRelation, fit_relation
 from rdt.softsensor import SoftSensor, build_table, make_soft_sensor
 from rdt.softsensor.recalibration import RecalibratedSoftSensor
 from rdt.state import InMemoryStateStore
@@ -61,15 +63,29 @@ def make_drift_detector(cfg: MonitoringConfig) -> DriftDetector:
 
 
 def make_components(cfg: Config, catalog: dict[str, SensorInfo], sensors: pd.DataFrame, streamed: list[str],
-                    modelled: list[str], history: pd.DataFrame) -> list[TwinComponent]:
+                    modelled: list[str], history: pd.DataFrame, network: RiverNetwork, limits: pd.DataFrame,
+                    soil_correction: pd.DataFrame) -> list[TwinComponent]:
     """Representation-model components named in `twin.components`, with their `representation` settings.
 
     `history`: readings before train_end (training rules applied), for components fitted on training data.
     """
+
+    @functools.cache
+    def relations() -> dict[str, TurbiditySpmRelation]:
+        return {st: fit_relation(history, st) for st in modelled}      # shared by turbidity_spm and reach
+
+    def reach(p: dict) -> ReachState:
+        settings = {rid: ReachSettings(float(s["travel_days"]), tuple(s["share_q"]), tuple(s["share"]))
+                    for rid, s in p["reaches"].items()}
+        return ReachState(network.reaches, settings, cfg.softsensor.metals, relations(), limits, soil_correction,
+                          cfg.quality.om_per_corg, residence_days=p["residence_days"], n_draws=p["n_draws"],
+                          class_switch_p=p["class_switch_p"])
+
     factories: dict[str, Callable[[dict], TwinComponent]] = {
         "sensor_health": lambda p: SensorHealth({s: catalog[s] for s in streamed}, nominal_intervals(sensors), **p),
-        "turbidity_spm": lambda p: TurbiditySpmCheck({st: fit_relation(history, st) for st in modelled}, **p),
+        "turbidity_spm": lambda p: TurbiditySpmCheck(relations(), **p),
         "regime": lambda p: HydroRegime({st: fit_thresholds(history, st, **p) for st in modelled}),
+        "reach": reach,
     }
     unknown = [n for n in cfg.twin.components if n not in factories]
     if unknown:
@@ -138,7 +154,8 @@ def build_system(cfg: Config, speed: float | None | str = "config") -> System:
         estimate_interval=timedelta(hours=cfg.twin.estimate_interval_h),
         reference=reference,
         class_evaluator=ClassEvaluator(sc.metals, limits, soil_correction, cfg.quality.om_per_corg),
-        components=make_components(cfg, catalog, sensors, streamed, modelled, clean_training_readings(history)),
+        components=make_components(cfg, catalog, sensors, streamed, modelled, clean_training_readings(history),
+                                   network, limits, soil_correction),
     )
     twin.attach(broker)
 

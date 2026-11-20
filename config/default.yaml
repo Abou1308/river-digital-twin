@@ -26,7 +26,7 @@ twin:
   estimate_interval_h: 6      # how often (simulated time) the soft sensor produces a new estimate
   history_maxlen: 100000      # readings kept per sensor in the in-memory state store
   # Representation-model components (rdt/representation/), each optional; see runtime.make_components.
-  components: [sensor_health, turbidity_spm, regime]
+  components: [sensor_health, turbidity_spm, regime, reach]
 
 softsensor:
   kind: kalman                # kalman | ridge_log | persistence
@@ -74,6 +74,13 @@ representation:
     peak_pct: 90          # peak at or above P90
     high_pct: 50          # a falling river counts as recession only above P50
     trend_pct: 75         # rising / recession start when the 24-h change exceeds P75 of training changes
+  reach:                  # sediment flux into each reach and its fresh deposit (docs/DECISIONS.md)
+    residence_days: 30    # memory of the fresh deposit (MVP default; no source gives a value)
+    n_draws: 2000         # joint draws holding the deposit's uncertainty
+    class_switch_p: 0.6   # the deposit's class changes only when another class has P >= 0.6
+    reaches:              # travel_days at mean flow; share = fraction of upstream discharge entering
+      maas_eijsden_keizersveer: {travel_days: 7, share_q: [0], share: [1.0]}
+      rijn_lobith_kampen:       {travel_days: 2, share_q: [680, 1300, 2480, 16000], share: [0.16, 0.18, 0.15, 0.154]}
 
 # Station coordinates are approximate (WGS84) - verify before using for anything but display.
 stations:
