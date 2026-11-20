@@ -21,13 +21,15 @@
 | `data/` | CSV loaders; `SensorInfo` catalogue derived from `sensors.csv` | done |
 | `messaging/` | `SensorMessage` (JSON), `Broker` protocol, in-memory broker with MQTT wildcards | in-memory done, MQTT stub |
 | `replay/` | `SimClock` (speed factor or as-fast-as-possible) and `Replayer` | done |
-| `twin/network.py` | Representation model: stations, reaches | structure done, flux propagation TODO |
+| `twin/network.py` | Representation model: stations, reaches | structure done; reach state in `representation/` |
+| `twin/components.py` | Hook for optional representation components (`twin.components`), called on each reading and estimate | done |
+| `representation/` | Optional components: sensor health, turbidity-SPM check, hydrological regime, reach flux and fresh deposit, downstream check (decisions in `docs/DECISIONS.md`) | done; no dashboard view yet |
 | `twin/twin.py` | Orchestrator: routes messages, compares lab vs prediction, assimilates, estimates | done |
 | `state.py` | `StateStore` protocol + thread-safe in-memory store; the twin/dashboard boundary | done |
 | `features/` | Sensor-window inputs (only those in `softsensor.features`), same code offline and live; verified against `model_table.csv` | done |
-| `softsensor/` | `SoftSensor` contract, `MetalEstimate` (joint log-normal); Kalman (main), ridge_log and persistence (references); `build_table` | done; evaluated in `analysis/04_soft_sensor_evaluation.py`, extra inputs tested in `analysis/05_model_tuning.py` (no gain) |
+| `softsensor/` | `SoftSensor` contract, `MetalEstimate` (joint log-normal); Kalman (main), ridge_log and persistence (references); online range recalibration wrapper (on by default); `build_table` | done; evaluated in `analysis/04_soft_sensor_evaluation.py`, extra inputs tested in `analysis/05_model_tuning.py` (no gain) |
 | `quality/` | Soil-type correction, class probabilities, reuse applications | correction and class probabilities done (tests in `tests/test_quality.py`); reuse applications TODO |
-| `monitoring/` | Drift detection, evaluation metrics, class evaluation (`ClassComparison` per complete lab sample, twin and reference; Brier, accuracy, confusion matrix) | simple detector + metrics + class evaluation done; CUSUM TODO |
+| `monitoring/` | Drift detection (CUSUM default, interval exceedance), evaluation metrics, class evaluation (`ClassComparison`), calibration checks, online Platt recalibration (analysis only) | done; calibration in `analysis/06`-`07` |
 | `sampling/` | Sampling policies (RL track) | fixed-interval done; RL TODO |
 | `dashboard/` | Dash app + pure plotly figure builders | metal series with reference line, scoreboard, sensors, quality-class panel (current class probabilities and class forecast scores per station), alerts |
 | `runtime.py` | `build_system(cfg)` wires everything | done |
@@ -45,5 +47,5 @@
 
 - **Soft sensor:** done (Kalman, see `softsensor/kalman.py` docstring). Lab results are streamed after an assumed turnaround (`softsensor.lab_delay_d`); the twin compares each result with its prediction for the sample time made with only the results known then.
 - **Quality:** `quality/classify.py`: reuse mapping (`reuse_applications`).
-- **Representation model:** what a `Reach` carries (fluxes, travel time); validate against Keizersveer and Kampen.
+- **Representation model:** components in `representation/`; the reach and downstream components cover fluxes, travel time and the Keizersveer / Kampen check.
 - **Dashboard:** reaches coloured by class, once the representation model propagates fluxes.
