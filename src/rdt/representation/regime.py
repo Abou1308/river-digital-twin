@@ -24,6 +24,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 
 import numpy as np
 import pandas as pd
@@ -35,8 +36,9 @@ from rdt.state import Alert, EntityState, StateStore
 from rdt.twin.components import TwinComponent
 
 MIN_HOURS = 12             # hours with data needed in a 24-h window
-_HOUR = pd.Timedelta(hours=1)
-_DAY = pd.Timedelta(hours=24)
+# Plain datetimes in the live path: this runs for every discharge reading, and pandas Timestamps
+# made it the slowest part of the replay.
+_DAY = timedelta(hours=24)
 
 
 @dataclass(frozen=True)
@@ -73,7 +75,7 @@ def fit_thresholds(readings: pd.DataFrame, station: str, peak_pct: float, high_p
                             trend=float(np.nanpercentile(change, trend_pct)))
 
 
-def _window_mean(hours: Mapping[pd.Timestamp, list[float]], start: pd.Timestamp, end: pd.Timestamp) -> float | None:
+def _window_mean(hours: Mapping[datetime, list[float]], start: datetime, end: datetime) -> float | None:
     """Mean of the hourly means in [start, end), if at least MIN_HOURS hours have data."""
     means = [s / n for h, (s, n) in hours.items() if start <= h < end]
     return float(np.mean(means)) if len(means) >= MIN_HOURS else None
@@ -82,8 +84,8 @@ def _window_mean(hours: Mapping[pd.Timestamp, list[float]], start: pd.Timestamp,
 class HydroRegime(TwinComponent):
     def __init__(self, thresholds: Mapping[str, RegimeThresholds]) -> None:
         self.thresholds = dict(thresholds)
-        self._hours: dict[str, dict[pd.Timestamp, list[float]]] = {st: {} for st in thresholds}  # hour: [sum, n]
-        self._current_hour: dict[str, pd.Timestamp] = {}
+        self._hours: dict[str, dict[datetime, list[float]]] = {st: {} for st in thresholds}  # hour: [sum, n]
+        self._current_hour: dict[str, datetime] = {}
         self._regime: dict[str, str | None] = {st: None for st in thresholds}
 
     def on_reading(self, info: SensorInfo, msg: SensorMessage, store: StateStore) -> None:
@@ -91,19 +93,19 @@ class HydroRegime(TwinComponent):
         if (info.kind is not SensorKind.DISCHARGE or st not in self.thresholds
                 or not passes_arrival_rules(info.kind.value, msg.value)):
             return
-        hour = pd.Timestamp(msg.time_utc).floor("h")
+        hour = msg.time_utc.replace(minute=0, second=0, microsecond=0)
+        hours = self._hours[st]
         previous = self._current_hour.get(st)
         if previous is not None and hour > previous:
             self._update(st, hour, msg, store)          # all hours before `hour` are complete
+            for h in [h for h in hours if h < hour - 2 * _DAY]:
+                del hours[h]
         self._current_hour[st] = hour
-        hours = self._hours[st]
         acc = hours.setdefault(hour, [0.0, 0])
         acc[0] += msg.value
         acc[1] += 1
-        for h in [h for h in hours if h < hour - 2 * _DAY]:
-            del hours[h]
 
-    def _update(self, st: str, hour: pd.Timestamp, msg: SensorMessage, store: StateStore) -> None:
+    def _update(self, st: str, hour: datetime, msg: SensorMessage, store: StateStore) -> None:
         hours = self._hours[st]
         q24 = _window_mean(hours, hour - _DAY, hour)
         if q24 is None:
