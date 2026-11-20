@@ -124,15 +124,7 @@ class KalmanSoftSensor(SoftSensor):
             p = _Params(tf, B, Q, R)
             self._params[st] = p
 
-            # run the filter through training to obtain the state at the end of training
-            a0 = np.nanmedian(E[: min(10, len(E))], axis=0)
-            a0 = np.where(np.isnan(a0), np.nanmedian(E, axis=0), a0)
-            state = _State(g["sample_time_utc"].iloc[0], a0, np.diag(np.nanvar(E, axis=0)))
-            z_train = []
-            for i, row in g.iterrows():
-                obs = {m: (Yraw[i, j], False) for j, m in enumerate(self.metals) if np.isfinite(Y[i, j])}
-                state, z = self._update(p, state, row["sample_time_utc"], obs, X[i])
-                z_train.append(z)
+            state, z_train = self._run_training(p, g, X, Y, Yraw, E)
             self._init[st] = state
             self._groups[st], self._ckpt[st] = [], []
             # Interval calibration: the robust (MAD) variances describe the bulk of the data, but lab
@@ -146,6 +138,20 @@ class KalmanSoftSensor(SoftSensor):
             diag["train_innovation_z"] = Z
             diag["interval_scale"] = pd.Series(p.scale, index=self.metals)
             self.diagnostics[st] = diag
+
+    def _run_training(self, p: _Params, g: pd.DataFrame, X: np.ndarray, Y: np.ndarray, Yraw: np.ndarray,
+                      E: np.ndarray) -> tuple[_State, list[np.ndarray]]:
+        """Run the filter through the training samples; return the state at the end of training and the
+        standardised innovations per sample."""
+        a0 = np.nanmedian(E[: min(10, len(E))], axis=0)
+        a0 = np.where(np.isnan(a0), np.nanmedian(E, axis=0), a0)
+        state = _State(g["sample_time_utc"].iloc[0], a0, np.diag(np.nanvar(E, axis=0)))
+        z_train = []
+        for i, row in g.iterrows():
+            obs = {m: (Yraw[i, j], False) for j, m in enumerate(self.metals) if np.isfinite(Y[i, j])}
+            state, z = self._update(p, state, row["sample_time_utc"], obs, X[i])
+            z_train.append(z)
+        return state, z_train
 
     def _fit_B(self, X: np.ndarray, Y: np.ndarray) -> np.ndarray:
         B = np.zeros((Y.shape[1], X.shape[1]))
