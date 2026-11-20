@@ -89,6 +89,19 @@ says where it applies, so it can be revisited or reversed.
   days). Result: 4 episodes, mainly a lasting shift at Lobith from late 2023 (SPM lower than turbidity
   implies), which the flux component's turbidity fallback should keep in mind.
 
+## Hydrological regime
+
+- Each modelled station is in base flow, rising, peak or recession (`representation/regime.py`, ported
+  from the MVP), updated hourly from the trailing 24-h mean discharge and its change over 24 h.
+- Thresholds are training percentiles per station (peak at P90, recession only above P50, a trend above
+  P75 of 24-h changes), so peak means equally rare flow on the Maas and the Rhine. Entering rising or
+  recession needs a clear trend; staying in it only the sign, so small wiggles do not flip the state.
+- Only entering and leaving peak raise an alert. All changes gave 743 alerts in 2021-2024 (525 at
+  Eijsden, mostly short rising / recession flickers on the regulated Maas), which would bury the
+  warnings; peak only gives 115. The current regime of each station is always in its entity.
+- Regime changes are stored as `Alert` records (kind "regime_transition", severity info), since Sary's
+  store has no separate event log. A separate event log would change the store interface; not done.
+
 ## Input assumptions for the reaches (researched, not yet used)
 
 Values for the reach and deposit components, from a literature search on 2026-11-19. [S] = read in the
