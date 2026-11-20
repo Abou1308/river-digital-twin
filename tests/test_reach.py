@@ -45,6 +45,8 @@ def test_share_is_interpolated_on_discharge():
     assert IJSSEL.fraction(2000) == pytest.approx(0.18 - 0.03 * 700 / 1180)
     assert IJSSEL.fraction(100) == 0.16 and IJSSEL.fraction(30000) == 0.154
     assert sediment_load(100.0, 50.0) == pytest.approx(432.0)              # 100 m3/s x 50 g/m3 x 86400 s
+    with pytest.raises(ValueError, match="increase"):
+        ReachSettings(2, (1300, 680), (0.18, 0.16))
 
 
 def test_flux_then_deposit_after_travel_time(cfg):

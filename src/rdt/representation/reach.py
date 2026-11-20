@@ -49,6 +49,12 @@ class ReachSettings:
     share_q: tuple[float, ...]         # upstream discharge (m3/s) ...
     share: tuple[float, ...]           # ... and the fraction of it that enters the reach
 
+    def __post_init__(self) -> None:
+        if len(self.share_q) != len(self.share) or not self.share_q:
+            raise ValueError("Reach share table: share_q and share need the same, non-zero length.")
+        if any(b <= a for a, b in zip(self.share_q, self.share_q[1:])):
+            raise ValueError(f"Reach share table: share_q must increase, got {self.share_q}.")
+
     def fraction(self, q: float) -> float:
         """Share of the upstream discharge entering the reach; constant beyond the table's ends."""
         return float(np.interp(q, self.share_q, self.share))
