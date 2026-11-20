@@ -36,12 +36,26 @@ says where it applies, so it can be revisited or reversed.
 - Online range recalibration (`softsensor/recalibration.py`) re-estimates each metal's range factor from
   the lab results received so far, with the same 90%-coverage rule Sary uses on training. Its prior weight
   (20 lab results) was fixed in advance, not tuned on the evaluation period.
-- Recalibration is off by default (`softsensor.recalibrate_prior_n: null`). It makes the concentration
-  ranges honest (coverage error 4.5 -> 2.4-3.0 percentage points) but does not improve the class
-  probabilities.
-- The class overconfidence comes from the predictions being too extreme, not too narrow: when the twin
-  predicts low, lab results come in higher, and vice versa. Fixing that needs a change to the predicted
-  values themselves (not yet done).
+- Recalibration is on by default (`softsensor.recalibrate_prior_n: 20`; null switches it off). It
+  halves the range error (4.1-4.5 -> 2.2-3.0 percentage points) at both stations in both periods, and
+  leaves the class probabilities unchanged.
+- The class overconfidence comes from the predicted values, not the ranges. Of the two parts of a
+  Kalman prediction, the level overshoots: after it moves, lab results come back part of the way
+  (slope -0.23 at Eijsden, -0.37 at Lobith). The sensor part does not overshoot. The overshoot explains
+  only 3-5% of the error variance, so the gain from fixing it is small (analysis/07_calibration_options.py).
+- Options compared (all untuned on the evaluation period):
+  - Refit how fast the level follows lab results on training (`softsensor.kalman_noise_fit: one_step`):
+    worse. Training prefers a level that follows more closely (multiplier about 3), while 2021-2025
+    shows it should follow less. Kept as an option for reproducibility; off.
+  - Correct each prediction by a learned share of the level's deviation, online: metal errors slightly
+    worse at Eijsden, slightly better at Lobith. Not adopted.
+  - Online Platt scaling of P(at least moderately contaminated) (`monitoring/probability_recalibration.py`):
+    reduces the miscalibration at Eijsden (reliability 0.017 -> 0.006; forecasts of about 0.95 come true
+    88% instead of 78%), but the event Brier gain is not significant (95% interval -0.02 to +0.01), it
+    makes the mean bias larger, it does nothing at Lobith, and it covers one event, not the four classes
+    the dashboard shows. Not used in the live twin; worth rechecking with more data.
+- None of the options improves resolution (telling high from low samples apart); that is limited by
+  what the sensors say about the metals.
 
 ## Drift detection
 
