@@ -14,8 +14,9 @@ depends on discharge; suspended sediment divides roughly like the water). The Ma
 its tributaries are not modelled.
 
 The load and the estimated content enter the reach's fresh deposit (deposit.py) after the reach's travel
-time. The deposit's class uses the latest lab lutum and organic carbon of the upstream station, as the
-station's own class does.
+time, with the upstream station's latest lab lutum and organic carbon. The deposit's class uses their
+load-weighted averages, rounded to 0.5 percentage points (well within lab precision) so that the
+soil-corrected limits can be reused between steps.
 
 Entity "reach" (id = reach id) holds the current flux and the deposit. The deposit's reported class
 ("class") only changes when another class becomes most likely with probability >= `class_switch_p`, so
@@ -43,6 +44,7 @@ from rdt.twin.network import Reach
 
 LOAD_FACTOR = 0.0864       # m3/s x mg/l -> tonnes/day
 _DAY = pd.Timedelta(hours=24)
+_SOIL_STEP = 0.5           # percentage points to which averaged lutum / organic carbon are rounded
 
 
 @dataclass(frozen=True)
@@ -77,7 +79,7 @@ class _Reach:
     reach: Reach
     settings: ReachSettings
     deposit: Deposit
-    queue: deque          # (due time, load, dt_days, mean_log, cov_log) waiting for the travel time
+    queue: deque          # (due time, load, dt_days, mean_log, cov_log, soil properties) still travelling
     last_class: str | None = None
 
 
@@ -107,8 +109,8 @@ class ReachState(TwinComponent):
             for r in reaches
         ]
         self._last_estimate: dict[str, pd.Timestamp] = {}
-        # Soil-corrected limits per upstream station, recomputed only when lutum / organic carbon change.
-        self._limits: dict[str, tuple[tuple[float, float], list[pd.DataFrame]]] = {}
+        # Soil-corrected limits per (rounded lutum, rounded organic carbon).
+        self._limits: dict[tuple[float, float], list[pd.DataFrame]] = {}
 
     def on_estimate(self, est: MetalEstimate, store: StateStore) -> None:
         st, t = est.station, pd.Timestamp(est.time_utc)
@@ -145,30 +147,32 @@ class ReachState(TwinComponent):
             values |= {"share": share, "discharge_m3s": share * q, "spm_mg_l": spm, "sediment_load_t_per_d": load,
                        "metal_flux_kg_per_d": {m: load * c * 1e-3 for m, c in median.items()}}
             dt_days = (t - previous) / _DAY
-            r.queue.append((t + pd.Timedelta(days=r.settings.travel_days), load, dt_days, est.mean_log, est.cov_log))
+            soil = {p: m.value for p in ("lutum", "corg") if (m := store.latest_reading(f"{st}_spm_{p}")) is not None}
+            r.queue.append((t + pd.Timedelta(days=r.settings.travel_days), load, dt_days, est.mean_log,
+                            est.cov_log, soil))
         while r.queue and r.queue[0][0] <= t:
-            due, load, dt_days, mean_log, cov_log = r.queue.popleft()
-            r.deposit.add(due, load, dt_days, mean_log, cov_log)
+            r.deposit.add(*r.queue.popleft())
         if r.deposit.ready:
-            values |= self._deposit_values(r, est.metals, st, store)
+            values |= self._deposit_values(r, est.metals)
             if "class_probabilities" in values:
                 values["class"] = self._reported_class(r, values["class_probabilities"], est, store)
         store.record_entity(EntityState("reach", r.reach.id, est.time_utc, values))
 
-    def _deposit_values(self, r: _Reach, metals: Sequence[str], st: str, store: StateStore) -> dict:
+    def _deposit_values(self, r: _Reach, metals: Sequence[str]) -> dict:
         draws = r.deposit.draws()
         out: dict = {"deposit_median": dict(zip(metals, np.median(draws, axis=0))),
                      "deposit_p05": dict(zip(metals, np.quantile(draws, 0.05, axis=0))),
                      "deposit_p95": dict(zip(metals, np.quantile(draws, 0.95, axis=0)))}
-        lutum, corg = store.latest_reading(f"{st}_spm_lutum"), store.latest_reading(f"{st}_spm_corg")
+        lutum, corg = r.deposit.soil_property("lutum"), r.deposit.soil_property("corg")
         if lutum is None or corg is None:
             out["class_reason"] = "no lab lutum / organic carbon yet"
             return out
-        key = (lutum.value, corg.value)
-        if st not in self._limits or self._limits[st][0] != key:
-            self._limits[st] = (key, metal_limits(metals, self.limits, self.soil_correction, lutum.value,
-                                                  self.om_per_corg * corg.value))
-        probs = draws_class_probabilities(draws, self._limits[st][1])
+        key = (round(lutum / _SOIL_STEP) * _SOIL_STEP, round(corg / _SOIL_STEP) * _SOIL_STEP)
+        if key not in self._limits:
+            self._limits[key] = metal_limits(metals, self.limits, self.soil_correction, key[0],
+                                             self.om_per_corg * key[1])
+        probs = draws_class_probabilities(draws, self._limits[key])
+        out |= {"deposit_lutum_pct": lutum, "deposit_corg_pct": corg}
         out |= {"class_probabilities": probs, "most_likely_class": max(probs, key=probs.get)}
         return out
 

@@ -23,6 +23,15 @@ def test_load_weighted_average_with_memory():
     assert _median(dep) == pytest.approx([10.0, 1000.0], rel=0.02)
 
 
+def test_soil_properties_are_load_weighted():
+    dep = Deposit(residence_days=30, n_metals=2)
+    dep.add(T0, 100.0, 1.0, np.log([1.0, 100.0]), COV)                          # before any lab value
+    assert dep.soil_property("lutum") is None
+    dep.add(T0, 100.0, 1.0, np.log([1.0, 100.0]), COV, {"lutum": 20.0})
+    dep.add(T0, 300.0, 1.0, np.log([1.0, 100.0]), COV, {"lutum": 40.0})
+    assert dep.soil_property("lutum") == pytest.approx(35.0)
+
+
 def test_errors_are_fully_correlated_in_time():
     """Averaging two inputs with the same spread keeps that spread (no 1/sqrt(n) shrinking)."""
     dep = Deposit(residence_days=30, n_metals=2, n_draws=20000)
