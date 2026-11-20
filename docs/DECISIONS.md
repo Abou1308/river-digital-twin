@@ -126,6 +126,15 @@ says where it applies, so it can be revisited or reversed.
   limits can be reused; that is within lab precision.
 - The reported class changes only when another class has probability >= 0.6 (hysteresis). Without it,
   a deposit near a boundary flipped weekly. 0.6 was chosen before looking at the results.
+- Memory: 30 days is kept (`analysis/08_deposit_memory.py`, 10-90 days tested). On the Maas it gives
+  the closest match to the Keizersveer samples (median error 8.3%, against 12.8% at 10 days and 8.4-8.8%
+  at 60-90 days); on the Rhine the match barely depends on it (9.3-10.8%). This check removes the level
+  difference per metal using the same samples, so it flatters the deposit against the last-value
+  baseline (8.5% at Keizersveer, 14.8% at Kampen).
+- The deposit's class is sensitive to the memory: the share of time the Maas deposit is moderately
+  contaminated is 47% at 10 days, 27% at 30 days and 13% at 90 days (Rhine: 21%, 14%, 6%). Longer
+  memories smooth out the high-content episodes. This is a real uncertainty of the reach classes, not
+  something the data can settle.
 - The deposit is a proxy, not a prediction of a measured bed sample: there is no transport physics and
   no bed sampling in the data to check it against. The downstream SPM samples (Keizersveer, Kampen) are
   the nearest check.
