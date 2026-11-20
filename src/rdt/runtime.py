@@ -29,6 +29,7 @@ from rdt.monitoring.cusum import CusumDetector
 from rdt.replay import Replayer, SimClock
 from rdt.representation.regime import HydroRegime, fit_thresholds
 from rdt.representation.sensor_health import SensorHealth, nominal_intervals
+from rdt.representation.downstream import DownstreamCheck, fit_factors
 from rdt.representation.reach import ReachSettings, ReachState
 from rdt.representation.turbidity_spm import TurbiditySpmCheck, TurbiditySpmRelation, fit_relation
 from rdt.softsensor import SoftSensor, build_table, make_soft_sensor
@@ -81,11 +82,18 @@ def make_components(cfg: Config, catalog: dict[str, SensorInfo], sensors: pd.Dat
                           cfg.quality.om_per_corg, residence_days=p["residence_days"], n_draws=p["n_draws"],
                           class_switch_p=p["class_switch_p"])
 
+    def downstream(p: dict) -> DownstreamCheck:
+        travel = {rid: float(s["travel_days"]) for rid, s in cfg.representation["reach"]["reaches"].items()}
+        factors = {r.id: fit_factors(history, r, travel[r.id], cfg.softsensor.metals, p["window_days"])
+                   for r in network.reaches}
+        return DownstreamCheck(network.reaches, travel, factors)
+
     factories: dict[str, Callable[[dict], TwinComponent]] = {
         "sensor_health": lambda p: SensorHealth({s: catalog[s] for s in streamed}, nominal_intervals(sensors), **p),
         "turbidity_spm": lambda p: TurbiditySpmCheck(relations(), **p),
         "regime": lambda p: HydroRegime({st: fit_thresholds(history, st, **p) for st in modelled}),
         "reach": reach,
+        "downstream": downstream,
     }
     unknown = [n for n in cfg.twin.components if n not in factories]
     if unknown:

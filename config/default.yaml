@@ -14,7 +14,7 @@ periods:
 
 replay:
   speed: 86400          # simulated seconds per wall-clock second (86400 = 1 day/s); null = as fast as possible
-  tiers: [core]         # sensor tiers from sensors.csv to stream: core, optional
+  tiers: [core, optional]   # sensor tiers to stream; optional holds the downstream lab samples
 
 broker:
   kind: memory          # memory | mqtt
@@ -26,7 +26,7 @@ twin:
   estimate_interval_h: 6      # how often (simulated time) the soft sensor produces a new estimate
   history_maxlen: 100000      # readings kept per sensor in the in-memory state store
   # Representation-model components (rdt/representation/), each optional; see runtime.make_components.
-  components: [sensor_health, turbidity_spm, regime, reach]
+  components: [sensor_health, turbidity_spm, regime, reach, downstream]
 
 softsensor:
   kind: kalman                # kalman | ridge_log | persistence
@@ -81,6 +81,8 @@ representation:
     reaches:              # travel_days at mean flow; share = fraction of upstream discharge entering
       maas_eijsden_keizersveer: {travel_days: 7, share_q: [0], share: [1.0]}
       rijn_lobith_kampen:       {travel_days: 2, share_q: [680, 1300, 2480, 16000], share: [0.16, 0.18, 0.15, 0.154]}
+  downstream:             # downstream lab results vs the upstream estimate; travel times from reach above
+    window_days: 14       # training: upstream lab sample within 14 days of (downstream sample - travel)
 
 # Station coordinates are approximate (WGS84) - verify before using for anything but display.
 stations:
