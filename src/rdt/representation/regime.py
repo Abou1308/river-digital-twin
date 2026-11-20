@@ -14,8 +14,10 @@ Entering rising or recession needs a clear trend, staying in it only the sign, s
 flip the state (hysteresis). The regime matters for the reaches: metal-laden sediment is mostly carried
 and deposited during high flows.
 
-Each update writes the "regime" entity of the station; each change of regime is a "regime_transition"
-event.
+Each update writes the "regime" entity of the station. Entering or leaving peak is a
+"regime_transition" alert; other changes are frequent (at Eijsden about every two days in 2021-2024,
+largely weir operation and small showers) and would bury the warnings, so they are only visible in the
+entity.
 """
 
 from __future__ import annotations
@@ -111,7 +113,7 @@ class HydroRegime(TwinComponent):
         old = self._regime[st]
         new = next_regime(old, q24, dq24, self.thresholds[st])
         self._regime[st] = new
-        if old is not None and new != old:
+        if old is not None and new != old and "peak" in (old, new):
             store.record_alert(Alert(msg.arrival_utc, st, "regime_transition",
                                      f"{st}: {old} -> {new} (24-h mean discharge {q24:,.0f} m3/s)"))
         store.record_entity(EntityState("regime", st, msg.arrival_utc,

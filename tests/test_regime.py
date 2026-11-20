@@ -56,8 +56,8 @@ def test_component_follows_a_flood_wave(catalog):
             seen.append(state.values["regime"])
     assert seen == ["base flow", "rising", "peak", "recession", "base flow"]
     transitions = [a for a in store.alerts(limit=100) if a.kind == "regime_transition"]
-    assert len(transitions) == 4
-    assert transitions[0].message.startswith("lobith: recession -> base flow")    # newest first
+    assert [a.message.split(" (")[0] for a in transitions] == ["lobith: peak -> recession",   # newest first
+                                                               "lobith: rising -> peak"]
 
 
 def test_other_sensors_and_bad_values_are_ignored(catalog):
