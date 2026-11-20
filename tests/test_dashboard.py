@@ -100,3 +100,12 @@ def test_map_hover_and_reach_panel(cfg, catalog):
 def test_clicked_reach():
     assert _clicked_reach(None) is None
     assert _clicked_reach({"points": [{"customdata": "rijn_lobith_kampen"}]}) == "rijn_lobith_kampen"
+
+
+def test_reaches_follow_their_path(cfg, catalog):
+    network = RiverNetwork.from_config(cfg, catalog)
+    for trace, reach in zip(network_map(network, {}, {}, {}).data, network.reaches):
+        up, down = network.stations[reach.upstream], network.stations[reach.downstream]
+        assert len(trace.lat) == len(reach.path) + 2
+        assert (trace.lat[0], trace.lat[-1]) == (up.lat, down.lat)
+        assert set(trace.customdata) == {reach.id}

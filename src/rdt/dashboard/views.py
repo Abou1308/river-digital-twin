@@ -35,15 +35,16 @@ def network_map(network: RiverNetwork, station_class: Mapping[str, str | None],
 
     `hover`: station or reach id -> hover text. Every point carries the id of a reach in `customdata`
     (a station: the first reach it belongs to), so a click on the map selects a reach.
-    Reaches are drawn as straight lines between their stations."""
+    Reaches follow their configured path (approximate waypoints), else a straight line."""
     fig = go.Figure()
     for r in network.reaches:
         up, down = network.stations[r.upstream], network.stations[r.downstream]
+        points = [(up.lat, up.lon), *r.path, (down.lat, down.lon)]
         cls = reach_class.get(r.id)
         fig.add_trace(go.Scattermap(
-            lat=[up.lat, down.lat], lon=[up.lon, down.lon], mode="lines",
+            lat=[p[0] for p in points], lon=[p[1] for p in points], mode="lines",
             line={"width": 6, "color": CLASS_COLOURS.get(cls, CLASS_COLOURS[None])},
-            customdata=[r.id, r.id], hovertext=[hover.get(r.id, r.id)] * 2, hoverinfo="text",
+            customdata=[r.id] * len(points), hovertext=[hover.get(r.id, r.id)] * len(points), hoverinfo="text",
             name=r.id, showlegend=False,
         ))
     stations = list(network.stations.values())

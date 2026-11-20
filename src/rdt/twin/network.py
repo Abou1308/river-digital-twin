@@ -40,6 +40,7 @@ class Reach:
     river: str
     upstream: str
     downstream: str
+    path: tuple[tuple[float, float], ...] = ()   # (lat, lon) between the stations along the river, for display
 
 
 @dataclass(frozen=True)
@@ -60,7 +61,7 @@ class RiverNetwork:
             )
             for sid, s in cfg.stations.items()
         }
-        reaches = tuple(Reach(**r) for r in cfg.reaches)
+        reaches = tuple(Reach(**{**r, "path": _path(r)}) for r in cfg.reaches)
         for r in reaches:
             missing = {r.upstream, r.downstream} - stations.keys()
             if missing:
@@ -69,3 +70,10 @@ class RiverNetwork:
 
     def modelled_stations(self) -> list[Station]:
         return [s for s in self.stations.values() if s.is_modelled]
+
+
+def _path(reach: dict) -> tuple[tuple[float, float], ...]:
+    points = tuple(tuple(float(v) for v in p) for p in reach.get("path", ()))
+    if any(len(p) != 2 for p in points):
+        raise ValueError(f"Reach {reach['id']}: every path point must be [lat, lon].")
+    return points

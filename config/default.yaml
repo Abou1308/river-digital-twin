@@ -92,9 +92,22 @@ stations:
   kampen:      {river: IJssel,           lat: 52.555, lon: 5.912, role: downstream}
 
 # Reaches of the representation model (upstream station -> downstream station).
+# path: approximate [lat, lon] waypoints along the river between the stations, for the dashboard map only.
 reaches:
-  - {id: maas_eijsden_keizersveer, river: Maas, upstream: eijsden, downstream: keizersveer}
-  - {id: rijn_lobith_kampen,       river: Rijn, upstream: lobith,  downstream: kampen}
+  - id: maas_eijsden_keizersveer
+    river: Maas
+    upstream: eijsden
+    downstream: keizersveer
+    # Maastricht, Maaseik, Roermond, Venlo, Boxmeer, Grave, Lith, Heusden (Bergsche Maas)
+    path: [[50.850, 5.690], [51.093, 5.800], [51.195, 5.975], [51.372, 6.172], [51.650, 5.950],
+           [51.762, 5.740], [51.810, 5.430], [51.735, 5.135]]
+  - id: rijn_lobith_kampen
+    river: Rijn
+    upstream: lobith
+    downstream: kampen
+    # Pannerdensche Kop, IJsselkop, Doesburg, Zutphen, Deventer, Olst, Zwolle
+    path: [[51.885, 6.035], [51.955, 5.965], [52.013, 6.137], [52.140, 6.193], [52.253, 6.150],
+           [52.337, 6.112], [52.510, 6.050]]
 
 dashboard:
   host: 127.0.0.1
