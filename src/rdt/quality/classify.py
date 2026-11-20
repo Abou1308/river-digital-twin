@@ -18,6 +18,8 @@ NOTE: the lab reports organic *carbon* (corg); organic matter needs a conversion
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 import numpy as np
 import pandas as pd
 
@@ -98,9 +100,21 @@ def _class_draws(
     if not np.all(np.isfinite(estimate.mean_log)):
         missing = [m for m, v in zip(estimate.metals, estimate.mean_log) if not np.isfinite(v)]
         raise ValueError(f"Estimate at {estimate.station} has no value for {missing}; cannot classify.")
-    draws = estimate.sample(n_draws, rng)
+    return _classes_of_draws(estimate.sample(n_draws, rng), estimate.metals, limits, soil_correction,
+                             lutum_pct, om_pct)
+
+
+def _classes_of_draws(
+    draws: np.ndarray,
+    metals: Sequence[str],
+    limits: pd.DataFrame,
+    soil_correction: pd.DataFrame,
+    lutum_pct: float,
+    om_pct: float,
+) -> np.ndarray:
+    """Class index per draw and metal for draws in mg/kg dw, shape (n_draws, n_metals)."""
     classes = np.empty(draws.shape, dtype=int)
-    for j, metal in enumerate(estimate.metals):
+    for j, metal in enumerate(metals):
         cl = corrected_limits(limits, soil_correction, metal.capitalize(), lutum_pct, om_pct)
         classes[:, j] = assign_class(draws[:, j], cl)
     return classes
@@ -143,6 +157,18 @@ def sample_class_probabilities(
     """
     classes = _class_draws(estimate, limits, soil_correction, lutum_pct, om_pct, n_draws, rng)
     return _shares(classes.max(axis=1))
+
+
+def draws_class_probabilities(
+    draws: np.ndarray,
+    metals: Sequence[str],
+    limits: pd.DataFrame,
+    soil_correction: pd.DataFrame,
+    lutum_pct: float,
+    om_pct: float,
+) -> dict[str, float]:
+    """{class: probability} for joint draws in mg/kg dw (n_draws, n_metals): per draw, the worst class."""
+    return _shares(_classes_of_draws(draws, metals, limits, soil_correction, lutum_pct, om_pct).max(axis=1))
 
 
 def reuse_applications(quality_class: str) -> list[str]:
