@@ -155,6 +155,19 @@ says where it applies, so it can be revisited or reversed.
   (17% vs 9%): Maas sediment at Keizersveer is much steadier than at Eijsden. Averaging Eijsden over
   longer windows helps (90 days: about 10%), which suggests the Maas reach integrates months, not days.
 
+## Network map (dashboard)
+
+- One card at the top of the dashboard: a map with the reaches coloured by the fresh deposit's reported
+  class and the modelled stations by the most likely class of their suspended sediment, next to a panel
+  for the selected reach (click a reach or station): upstream regime, discharge entering the reach,
+  suspended matter and its source, sediment load, metal flux, and the deposit's median, 90% range and
+  class probabilities. Chosen over a schematic or reach cards because it reuses the station coordinates
+  and shows where the reaches are.
+- Reaches follow approximate waypoints along the rivers (`reaches[].path` in the config), placed by hand
+  at towns on the river; display only, nothing is computed from them.
+- Basemap: Sary's `open-street-map` raster tiles. Map labels use the basemap's own font, as map labels
+  can only use fonts the tile server provides.
+
 ## Input assumptions for the reaches (researched, now used by the reach component)
 
 Values for the reach and deposit components, from a literature search on 2026-11-19. [S] = read in the
