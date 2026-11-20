@@ -87,6 +87,21 @@ def test_class_change_alert_when_deposit_gets_worse(cfg):
     for h in range(24, 24 * 40, 6):
         reach.on_estimate(_estimate(h, CLEAN if h < 24 * 10 else DIRTY), store)
     alerts = [a for a in store.alerts() if a.kind == "class_change"]
-    assert alerts and alerts[-1].message.startswith(f"{RHINE.id}: fresh deposit most likely")
+    assert alerts and alerts[-1].message.startswith(f"{RHINE.id}: fresh deposit now")
     assert all(a.severity == "warning" for a in alerts) and alerts[0].station == "kampen"
-    assert store.entity("reach", RHINE.id).values["most_likely_class"] == "heavily contaminated"
+    assert store.entity("reach", RHINE.id).values["class"] == "heavily contaminated"
+
+
+def test_class_does_not_flip_near_a_boundary(cfg):
+    store, reach = InMemoryStateStore(), _component(cfg)
+    r = reach._reaches[0]
+    est = _estimate(0, CLEAN)
+    for p_moderate in (0.55, 0.45, 0.58, 0.42):
+        probs = {"clean": 0.0, "slightly contaminated": 1 - p_moderate, "moderately contaminated": p_moderate,
+                 "heavily contaminated": 0.0}
+        reach._reported_class(r, probs, est, store)
+    assert r.last_class == "moderately contaminated"            # first value, never beaten by >= 0.6
+    assert not store.alerts()
+    reach._reported_class(r, {"clean": 0.0, "slightly contaminated": 0.65, "moderately contaminated": 0.35,
+                              "heavily contaminated": 0.0}, est, store)
+    assert r.last_class == "slightly contaminated" and store.alerts()[0].severity == "info"

@@ -17,8 +17,10 @@ The load and the estimated content enter the reach's fresh deposit (deposit.py) 
 time. The deposit's class uses the latest lab lutum and organic carbon of the upstream station, as the
 station's own class does.
 
-Entity "reach" (id = reach id) holds the current flux and the deposit; a change of the deposit's most
-likely class is a "class_change" alert (warning if worse, info if better).
+Entity "reach" (id = reach id) holds the current flux and the deposit. The deposit's reported class
+("class") only changes when another class becomes most likely with probability >= `class_switch_p`, so
+a deposit near a class boundary does not flip back and forth; each change is a "class_change" alert
+(warning if worse, info if better). "most_likely_class" is reported without this hysteresis.
 """
 
 from __future__ import annotations
@@ -91,12 +93,14 @@ class ReachState(TwinComponent):
         om_per_corg: float,
         residence_days: float = 30.0,
         n_draws: int = 2000,
+        class_switch_p: float = 0.6,
     ) -> None:
         missing = [r.id for r in reaches if r.id not in settings]
         if missing:
             raise ValueError(f"No reach settings for {missing} (config representation.reach.reaches).")
         self.relations = dict(relations)
         self.limits, self.soil_correction, self.om_per_corg = limits, soil_correction, om_per_corg
+        self.class_switch_p = class_switch_p
         self.metals = tuple(metals)
         self._reaches = [
             _Reach(r, settings[r.id], Deposit(residence_days, len(self.metals), n_draws), deque())
@@ -147,7 +151,8 @@ class ReachState(TwinComponent):
             r.deposit.add(due, load, dt_days, mean_log, cov_log)
         if r.deposit.ready:
             values |= self._deposit_values(r, est.metals, st, store)
-            self._class_event(r, values.get("most_likely_class"), est, store)
+            if "class_probabilities" in values:
+                values["class"] = self._reported_class(r, values["class_probabilities"], est, store)
         store.record_entity(EntityState("reach", r.reach.id, est.time_utc, values))
 
     def _deposit_values(self, r: _Reach, metals: Sequence[str], st: str, store: StateStore) -> dict:
@@ -167,11 +172,15 @@ class ReachState(TwinComponent):
         out |= {"class_probabilities": probs, "most_likely_class": max(probs, key=probs.get)}
         return out
 
-    def _class_event(self, r: _Reach, new: str | None, est: MetalEstimate, store: StateStore) -> None:
-        old, r.last_class = r.last_class, new or r.last_class
-        if old is None or new is None or new == old:
-            return
-        worse = QUALITY_CLASSES.index(new) > QUALITY_CLASSES.index(old)
-        store.record_alert(Alert(est.time_utc, r.reach.downstream, "class_change",
-                                 f"{r.reach.id}: fresh deposit most likely {new} (was {old})",
-                                 severity="warning" if worse else "info"))
+    def _reported_class(self, r: _Reach, probs: dict[str, float], est: MetalEstimate, store: StateStore) -> str:
+        best = max(probs, key=probs.get)
+        old = r.last_class
+        if old is None:
+            r.last_class = best
+        elif best != old and probs[best] >= self.class_switch_p:
+            r.last_class = best
+            worse = QUALITY_CLASSES.index(best) > QUALITY_CLASSES.index(old)
+            store.record_alert(Alert(est.time_utc, r.reach.downstream, "class_change",
+                                     f"{r.reach.id}: fresh deposit now {best} (P = {probs[best]:.0%}; was {old})",
+                                     severity="warning" if worse else "info"))
+        return r.last_class
