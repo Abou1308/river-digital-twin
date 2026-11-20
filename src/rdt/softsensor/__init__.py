@@ -24,6 +24,8 @@ def make_soft_sensor(kind: str, metals: Sequence[str], features: Sequence[str] =
         raise ValueError(f"Unknown soft sensor '{kind}'. Options: {sorted(_REGISTRY)}") from None
     if cls is RidgeLogSoftSensor:
         return cls(metals, features, lab_delay_d=params.get("lab_delay_d", 0.0))
+    if cls is KalmanSoftSensor:
+        return cls(metals, features, noise_fit=params.get("noise_fit", "variogram"))
     return cls(metals, features)
 
 

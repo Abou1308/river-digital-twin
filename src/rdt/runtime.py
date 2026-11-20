@@ -92,7 +92,8 @@ def build_system(cfg: Config, speed: float | None | str = "config") -> System:
     lab = table[(table["sample_time_utc"] < cut) & table["station"].isin(modelled)]
     history = load_readings(cfg.data_dir, end=cut)
     train = build_table(lab, history, sc.metals, sc.features, training=True)
-    soft_sensor = make_soft_sensor(sc.kind, sc.metals, sc.features, lab_delay_d=sc.lab_delay_d)
+    soft_sensor = make_soft_sensor(sc.kind, sc.metals, sc.features, lab_delay_d=sc.lab_delay_d,
+                                   noise_fit=sc.kalman_noise_fit)
     if sc.recalibrate_prior_n is not None:
         soft_sensor = RecalibratedSoftSensor(soft_sensor, prior_n=sc.recalibrate_prior_n)
     soft_sensor.fit(train, cutoff=cut)

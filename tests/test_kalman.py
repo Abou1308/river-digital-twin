@@ -104,3 +104,12 @@ def test_outlier_is_limited(fitted):
     # Huber update: the level moves by at most ~outlier_k prior sds, far less than ln(100)
     assert post.mean_log[0] - prior.mean_log[0] < 0.5 * np.log(100)
 
+
+def test_one_step_noise_fit_never_worse_on_training(table):
+    k = KalmanSoftSensor(METALS, FEATS, noise_fit="one_step")
+    k.fit(table, CUT)
+    scores = k.diagnostics["lobith"]["q_multiplier_score"]
+    assert scores.min() <= scores.loc[1.0]                     # the grid includes the variogram Q
+    assert k.predict("lobith", CUT, {"q_mean_7d": 1500}).mean_log.shape == (2,)
+    with pytest.raises(ValueError, match="noise_fit"):
+        KalmanSoftSensor(METALS, FEATS, noise_fit="other")

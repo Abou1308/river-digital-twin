@@ -20,7 +20,12 @@ Fitting (training period only):
      Cov(e_j - e_i) = 2R + Q d. Pair covariances are binned by lag and a straight line is fitted per
      metal pair (intercept -> R, slope -> Q). Robust (MAD-based) covariances limit the influence of
      outliers. `diagnostics[station]` keeps the binned variogram so the linearity can be checked.
-  3. The filter is run through the training samples to get the state at the end of training.
+  3. Optional (`noise_fit="one_step"`): Q is multiplied by the factor, from a grid of 0.01-10, that
+     minimises the one-step-ahead prediction error on training (geometric mean over metals of the
+     mean absolute error in log space, after a burn-in of 20 samples). The variogram fixes how Q and
+     R are shaped; this step only sets how fast the level follows new lab results. On 2021-2024 the
+     variogram level followed single results too closely (analysis/07_calibration_options.py).
+  4. The filter is run through the training samples to get the state at the end of training.
 
 Live:
   predict    -> level uncertainty grows with the time since the last result; mean = level + B x_t;
@@ -41,6 +46,7 @@ Automatic robustness (applied identically in training and live):
 from __future__ import annotations
 
 import bisect
+import logging
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
@@ -53,7 +59,11 @@ from rdt.softsensor.base import FeatureTransform, LabObservation, NotReadyError,
 from rdt.softsensor.baselines import _psd
 from rdt.softsensor.estimate import MetalEstimate
 
+log = logging.getLogger(__name__)
 DAY_S = 86400.0
+_NOISE_FITS = ("variogram", "one_step")
+_Q_GRID = np.logspace(-2, 1, 13)     # includes 1 (the variogram Q itself)
+_BURN_IN = 20                        # training samples skipped before scoring innovations
 
 
 @dataclass
@@ -98,9 +108,12 @@ class KalmanSoftSensor(SoftSensor):
     name = "kalman"
 
     def __init__(self, metals: Sequence[str], features: Sequence[str] = (), max_lag_d: float = 180.0,
-                 n_bins: int = 12, outlier_k: float = 3.5) -> None:
+                 n_bins: int = 12, outlier_k: float = 3.5, noise_fit: str = "variogram") -> None:
         super().__init__(metals, features)
+        if noise_fit not in _NOISE_FITS:
+            raise ValueError(f"Unknown noise_fit '{noise_fit}'. Options: {', '.join(_NOISE_FITS)}")
         self.max_lag_d, self.n_bins, self.outlier_k = max_lag_d, n_bins, outlier_k
+        self.noise_fit = noise_fit
         self._params: dict[str, _Params] = {}
         self._init: dict[str, _State] = {}
         self._groups: dict[str, list[_Group]] = {}
@@ -122,9 +135,12 @@ class KalmanSoftSensor(SoftSensor):
             t_d = (g["sample_time_utc"] - g["sample_time_utc"].iloc[0]).dt.total_seconds().to_numpy() / DAY_S
             Q, R, diag = self._fit_noise(t_d, E)
             p = _Params(tf, B, Q, R)
+            if self.noise_fit == "one_step":
+                p.Q = Q * self._fit_q_multiplier(p, g, X, Y, Yraw, E, diag)
+                diag["Q"] = pd.DataFrame(p.Q, index=self.metals, columns=self.metals)
             self._params[st] = p
 
-            state, z_train = self._run_training(p, g, X, Y, Yraw, E)
+            state, z_train, _ = self._run_training(p, g, X, Y, Yraw, E)
             self._init[st] = state
             self._groups[st], self._ckpt[st] = [], []
             # Interval calibration: the robust (MAD) variances describe the bulk of the data, but lab
@@ -132,7 +148,7 @@ class KalmanSoftSensor(SoftSensor):
             # Per metal, widen the reported covariance so that 90% of training innovations (after a
             # burn-in of 20 samples) fall inside. Only the uncertainty changes, not the predictions.
             Z = pd.DataFrame(z_train, columns=self.metals)
-            q90 = Z.iloc[20:].abs().quantile(0.9).to_numpy()
+            q90 = Z.iloc[_BURN_IN:].abs().quantile(0.9).to_numpy()
             p.scale = np.where(np.isfinite(q90), np.maximum(1.0, q90 / 1.6448536269514722), 1.0)
             diag["B"] = pd.DataFrame(B, index=self.metals, columns=self.features)
             diag["train_innovation_z"] = Z
@@ -140,18 +156,33 @@ class KalmanSoftSensor(SoftSensor):
             self.diagnostics[st] = diag
 
     def _run_training(self, p: _Params, g: pd.DataFrame, X: np.ndarray, Y: np.ndarray, Yraw: np.ndarray,
-                      E: np.ndarray) -> tuple[_State, list[np.ndarray]]:
-        """Run the filter through the training samples; return the state at the end of training and the
-        standardised innovations per sample."""
+                      E: np.ndarray) -> tuple[_State, list[np.ndarray], np.ndarray]:
+        """Run the filter through the training samples; return the state at the end of training, the
+        standardised innovations per sample and the raw one-step-ahead errors in log space (n, m)."""
         a0 = np.nanmedian(E[: min(10, len(E))], axis=0)
         a0 = np.where(np.isnan(a0), np.nanmedian(E, axis=0), a0)
         state = _State(g["sample_time_utc"].iloc[0], a0, np.diag(np.nanvar(E, axis=0)))
-        z_train = []
+        z_train, err = [], np.full(Y.shape, np.nan)
         for i, row in g.iterrows():
             obs = {m: (Yraw[i, j], False) for j, m in enumerate(self.metals) if np.isfinite(Y[i, j])}
+            err[i] = Y[i] - (state.a + p.B @ X[i])      # the time update leaves the level mean unchanged
             state, z = self._update(p, state, row["sample_time_utc"], obs, X[i])
             z_train.append(z)
-        return state, z_train
+        return state, z_train, err
+
+    def _fit_q_multiplier(self, p: _Params, g: pd.DataFrame, X: np.ndarray, Y: np.ndarray, Yraw: np.ndarray,
+                          E: np.ndarray, diag: dict[str, object]) -> float:
+        """Multiplier on Q with the smallest one-step-ahead error on training (see the module docstring)."""
+        scores = []
+        for c in _Q_GRID:
+            _, _, err = self._run_training(_Params(p.tf, p.B, p.Q * c, p.R), g, X, Y, Yraw, E)
+            mae = np.nanmean(np.abs(err[_BURN_IN:]), axis=0)
+            scores.append(float(np.mean(np.log(mae[np.isfinite(mae)]))))
+        diag["q_multiplier_score"] = pd.Series(scores, index=_Q_GRID, name="mean log MAE")
+        best = int(np.argmin(scores))
+        if best in (0, len(_Q_GRID) - 1):
+            log.warning("Q multiplier %.3g is at the edge of the search grid", _Q_GRID[best])
+        return float(_Q_GRID[best])
 
     def _fit_B(self, X: np.ndarray, Y: np.ndarray) -> np.ndarray:
         B = np.zeros((Y.shape[1], X.shape[1]))

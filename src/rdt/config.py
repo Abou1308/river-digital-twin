@@ -54,6 +54,7 @@ class SoftSensorConfig:
     eval_lab_delays_d: tuple[float, ...]  # turnarounds compared in offline evaluation
     reference: str | None = None        # model run alongside for the live comparison (None = off)
     recalibrate_prior_n: float | None = None  # online range recalibration (None = off)
+    kalman_noise_fit: str = "variogram"  # variogram | one_step, see softsensor/kalman.py
 
 
 @dataclass(frozen=True)
@@ -120,6 +121,7 @@ def load_config(path: str | Path | None = None) -> Config:
             eval_lab_delays_d=tuple(raw["softsensor"]["eval_lab_delays_d"]),
             reference=raw["softsensor"].get("reference"),
             recalibrate_prior_n=raw["softsensor"].get("recalibrate_prior_n"),
+            kalman_noise_fit=raw["softsensor"]["kalman_noise_fit"],
         ),
         monitoring=MonitoringConfig(
             drift=raw["monitoring"]["drift"],

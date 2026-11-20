@@ -45,6 +45,9 @@ softsensor:
   # (rdt/softsensor/recalibration.py): the weight, in lab results, of the training calibration.
   # null = off.
   recalibrate_prior_n: null
+  # How fast the Kalman level follows new lab results: variogram (Sary's fit) or one_step (the level
+  # drift rescaled to minimise training one-step-ahead error; see rdt/softsensor/kalman.py).
+  kalman_noise_fit: variogram
 
 monitoring:
   # Drift detector on incoming lab results: cusum (small persistent bias, rdt/monitoring/cusum.py) or
