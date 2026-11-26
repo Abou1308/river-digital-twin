@@ -96,10 +96,25 @@ def _ts(value: str) -> pd.Timestamp:
     return pd.Timestamp(value).tz_convert("UTC") if pd.Timestamp(value).tzinfo else pd.Timestamp(value, tz="UTC")
 
 
+def _merge(base: dict, override: dict) -> dict:
+    """Override `base` key by key; nested mappings are merged, everything else (lists too) replaced."""
+    out = dict(base)
+    for k, v in override.items():
+        out[k] = _merge(out[k], v) if isinstance(v, dict) and isinstance(out.get(k), dict) else v
+    return out
+
+
+def _read(path: Path) -> dict:
+    """A YAML config; `extends: <file>` (relative to this file) takes that file as the base."""
+    raw = yaml.safe_load(path.read_text()) or {}
+    base = raw.pop("extends", None)
+    return _merge(_read(path.parent / base), raw) if base else raw
+
+
 def load_config(path: str | Path | None = None) -> Config:
     """Load a YAML config file (defaults to config/default.yaml)."""
     path = Path(path) if path else DEFAULT_CONFIG
-    raw = yaml.safe_load(path.read_text())
+    raw = _read(path)
     root = path.resolve().parent.parent
 
     data_dir = Path(raw["paths"]["data_dir"])

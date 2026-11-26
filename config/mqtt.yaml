@@ -1,0 +1,10 @@
+# Two processes connected over MQTT, on this machine: `rdt --config config/mqtt.yaml twin` and
+# `rdt --config config/mqtt.yaml replay`, with a broker on localhost:1883 (docker compose up mosquitto).
+# Only the differences from default.yaml.
+extends: default.yaml
+
+broker:
+  kind: mqtt
+  mqtt:
+    host: localhost
+    port: 1883
