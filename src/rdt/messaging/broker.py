@@ -144,9 +144,12 @@ class MqttBroker:
         if new:
             self._client.subscribe(pattern, qos=self.qos)
 
-    def publish_status(self, name: str, value: str) -> None:
-        """Publish a retained status, so a process that subscribes later still sees it."""
-        self._send(STATUS_PREFIX + name, value, retain=True).wait_for_publish(self.timeout)
+    def publish_status(self, name: str, value: str, retain: bool = True) -> None:
+        """Publish a status; retained by default, so a process that subscribes later still sees it.
+        Waits until earlier messages from this client have been acknowledged too."""
+        if self._last is not None:
+            self._last.wait_for_publish(self.timeout)
+        self._send(STATUS_PREFIX + name, value, retain=retain).wait_for_publish(self.timeout)
 
     def wait_for_status(self, name: str, value: str, timeout_s: float | None = None) -> bool:
         """Block until status `name` equals `value`; False if `timeout_s` passes first."""
