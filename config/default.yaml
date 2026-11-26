@@ -24,7 +24,7 @@ broker:
 
 twin:
   estimate_interval_h: 6      # how often (simulated time) the soft sensor produces a new estimate
-  history_maxlen: 100000      # readings kept per sensor in the in-memory state store
+  history_maxlen: 250000      # readings kept per sensor in the store; 2021-2024 has ~210,000 per discharge sensor
   # Representation-model components (rdt/representation/), each optional; see runtime.make_components.
   components: [sensor_health, turbidity_spm, regime, reach, downstream]
 
