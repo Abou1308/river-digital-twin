@@ -28,10 +28,10 @@ class DriftDetector(ABC):
 
 
 class IntervalExceedanceDetector(DriftDetector):
-    """Simple placeholder: alert when `k` consecutive results fall outside the central `level` interval.
+    """Alert when `k` consecutive results fall outside the central `level` interval.
 
-    TODO: replace / complement with a CUSUM or Page-Hinkley test on standardised innovations,
-    which detects gradual bias rather than only large misses.
+    Detects large misses only; the default detector, `CusumDetector` (monitoring/cusum.py), also
+    detects gradual bias.
     """
 
     def __init__(self, k: int = 3, level: float = 0.9) -> None:

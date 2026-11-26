@@ -28,12 +28,11 @@ class Station:
 
 @dataclass(frozen=True)
 class Reach:
-    """A river stretch between two stations.
+    """A river stretch between two stations (static structure only).
 
-    TODO (representation model): decide what a reach carries, e.g. travel time, length, and the
-    hydrological state / sediment and metal fluxes propagated from the upstream station
-    (flux = discharge * SPM concentration * metal content). Downstream stations (Keizersveer,
-    Kampen; ~quarterly lab samples) can validate that propagation.
+    Its dynamic state (sediment and metal flux, fresh deposit) is the "reach" entity written by
+    representation/reach.py, with travel time and discharge share from `representation.reach`; the
+    downstream station's lab samples check it (representation/downstream.py).
     """
 
     id: str
