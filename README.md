@@ -49,11 +49,14 @@ Requires Docker with Compose and the dataset in place (or `RDT_DATA=/path/to/Ful
 
 ```bash
 docker compose up --build             # Mosquitto + twin + replay; dashboard on http://127.0.0.1:8050
-docker compose run --rm replay replay --speed 604800   # replay again, 1 simulated week per second
 docker compose down                   # stop and remove the containers
+
+docker compose up -d --build mosquitto twin              # or: a faster replay (1 simulated week/s)
+docker compose run --rm replay replay --speed 604800
 ```
 
-The replay waits until the twin has fitted its models and announced on MQTT that it is listening.
+The replay waits until the twin has fitted its models and announced on MQTT that it is listening. A twin
+takes one replay: to replay again, restart the twin first (`docker compose restart twin`).
 
 ### Two processes over MQTT without Docker for the twin
 
