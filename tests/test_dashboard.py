@@ -45,6 +45,7 @@ def test_class_station_renders():
                             "heavily contaminated": 0})]
     ok = str(_class_station("lobith", class_summary(EST, LUTUM, CORG, LIMITS, SOIL, 1.724), cmp))
     assert "most likely moderately contaminated" in ok and "twin Brier 0.08" in ok and "last lab value Brier 2.00" in ok
+    assert "If dredged, applicable in surface water" in ok
     missing = str(_class_station("lobith", class_summary(EST, None, CORG, LIMITS, SOIL, 1.724), []))
     assert "lutum / organic carbon unknown" in missing and "no complete lab sample yet" in missing
 
@@ -92,6 +93,7 @@ def test_map_hover_and_reach_panel(cfg, catalog):
     panel = str(_reach_panel(reach_label(network, reach), state, regime))
     assert "Upstream regime: rising" in panel and "16% of the upstream discharge" in panel
     assert "663.6" in panel and "500 – 700" in panel and "Fresh deposit: moderately contaminated" in panel
+    assert "onto a clean water bottom 0%" in panel and "onto a moderately contaminated water bottom 100%" in panel
     early = str(_reach_panel("x", EntityState("reach", reach.id, T, {"spm_source": "none"}), None))
     assert "No flux at this step" in early and "no sediment has arrived yet" in early
     assert "No data for this reach yet" in str(_reach_panel("x", None, None))

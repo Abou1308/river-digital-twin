@@ -35,6 +35,11 @@ carbon received (organic matter = `quality.om_per_corg` x organic carbon). The d
 class. Below it, the class forecast so far: each complete lab sample's class compared with the class
 probabilities predicted for its sample time, for the twin and the last known lab value (Brier score:
 0 is perfect, lower is better; accuracy of the most likely class).
+
+Reuse line (station and reach panels): the probability that the sediment, if dredged, may be applied in
+surface water onto a water bottom of each class (Bal 4.1272: material may go onto a bottom of its own
+class or worse; heavily contaminated material not at all). It follows from the class probabilities, so
+it rests on the five estimated metals only (rdt/quality/reuse.py).
 """
 
 from __future__ import annotations
@@ -46,7 +51,7 @@ from dash import Dash, Input, Output, dash_table, dcc, html
 
 from rdt.dashboard import views
 from rdt.monitoring.classes import score_class_comparisons
-from rdt.quality import QUALITY_CLASSES
+from rdt.quality import QUALITY_CLASSES, surface_water_probabilities
 from rdt.data.cleaning import passes_arrival_rules
 from rdt.state import ClassComparison, EntityState, StateStore
 from rdt.twin.network import RiverNetwork
@@ -89,6 +94,15 @@ def _class_bar(probabilities: dict[str, float]) -> html.Div:
     return html.Div(segments, className="class-bar")
 
 
+def _reuse_line(probabilities: dict[str, float]) -> html.Div:
+    """Probability that the sediment, if dredged, may be applied in surface water, per class of the
+    receiving water bottom (rdt/quality/reuse.py)."""
+    p = surface_water_probabilities(probabilities)
+    parts = ", ".join(f"onto a {bottom} water bottom {share:.0%}" for bottom, share in p.items())
+    return html.Div(f"If dredged, applicable in surface water (Bal 4.1272; judged on these five metals only): "
+                    f"{parts}.", className="muted")
+
+
 def _class_scores_text(comparisons: list[ClassComparison]) -> str:
     if not comparisons:
         return "Class forecast so far: no complete lab sample yet."
@@ -114,6 +128,7 @@ def _class_station(station: str, summary: views.ClassSummary, comparisons: list[
         body.append(_class_bar(summary.probabilities))
         body.append(html.Div(f"Lutum {summary.lutum_pct:.1f}%, organic matter {summary.om_pct:.1f}% "
                              f"(lab sample {summary.soil_sample_time:%Y-%m-%d})", className="muted"))
+        body.append(_reuse_line(summary.probabilities))
     body.append(html.Div(_class_scores_text(comparisons), className="muted"))
     return html.Div(body, className="class-station")
 
@@ -168,6 +183,7 @@ def _reach_panel(label: str, reach: EntityState | None, regime: EntityState | No
         body.append(_class_bar(v["class_probabilities"]))
         body.append(html.Div(f"Load-weighted lutum {v['deposit_lutum_pct']:.1f}%, organic carbon "
                              f"{v['deposit_corg_pct']:.1f}%", className="muted"))
+        body.append(_reuse_line(v["class_probabilities"]))
     body.append(_reach_table(v))
     return html.Div(body, className="reach-panel")
 
