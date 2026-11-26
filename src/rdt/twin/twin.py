@@ -79,6 +79,12 @@ class DigitalTwin:
             log.warning("Message for unknown sensor %s on %s", msg.sensor_id, topic)
             return
         now = msg.arrival_utc
+        last = self.store.sim_time()
+        if last is not None and now < last:
+            # The state (estimates, deposits, drift statistics) only moves forward in time.
+            raise ValueError(f"{msg.sensor_id} arrived at {now:%Y-%m-%d %H:%M}, before the twin's time "
+                             f"{last:%Y-%m-%d %H:%M}. A twin follows one replay in time order; restart it to "
+                             f"replay again.")
         self.store.record_reading(msg)
         self.store.set_sim_time(now)
         for component in self.components:

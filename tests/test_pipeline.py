@@ -165,3 +165,15 @@ def test_components_see_all_readings_and_estimates(cfg, catalog, train_table):
     assert rec.estimates == len(store.estimates("lobith"))
     assert store.entity("station_seen", "kampen").values == {"last": 400.0}
     assert set(store.entities("station_seen")) == {"lobith", "kampen"}
+
+
+def test_twin_rejects_readings_back_in_time(cfg, catalog, train_table):
+    """A second replay into the same twin would mix two runs into one state; it is refused instead."""
+    sensor = PersistenceSoftSensor(METALS)
+    sensor.fit(train_table, START)
+    broker = InMemoryBroker()
+    DigitalTwin(RiverNetwork.from_config(cfg, catalog), catalog, sensor, InMemoryStateStore(),
+                estimate_interval=timedelta(hours=6)).attach(broker)
+    Replayer(_readings(), catalog, broker, SimClock(START, speed=None)).run()
+    with pytest.raises(ValueError, match="restart it to replay again"):
+        Replayer(_readings(), catalog, broker, SimClock(START, speed=None)).run()
