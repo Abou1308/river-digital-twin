@@ -194,6 +194,24 @@ says where it applies, so it can be revisited or reversed.
   read-only rather than copied into the image, ports bound to 127.0.0.1. `config/docker.yaml` and
   `config/mqtt.yaml` contain only the differences, through `extends:` in the config loader.
 
+## Reuse of dredged material
+
+- The four classes are those for baggerspecie and waterbodem (Rbk 2022 bijlage B tabel 2; formerly
+  achtergrondwaarde, klasse A, klasse B, niet toepasbaar). What they allow is read from the legal text
+  (official XML repository, as wetten.overheid.nl blocks automated access): Bal 4.1272 lid 2 requires
+  baggerspecie applied in surface water to meet the requirements of the receiving water bottom's class
+  and of matig verontreinigd; water bottoms are niet, licht or matig verontreinigd (Besluit
+  bodemkwaliteit 25d lid 4). So material may go onto a bottom of its own class or worse; sterk
+  verontreinigd only by maatwerk from and onto diffusely sterk verontreinigd locations (Bal 4.1273).
+- `quality/reuse.py`: `reuse_applications(class)` gives these uses as text, and
+  `surface_water_probabilities` turns class probabilities into the probability that the sediment may go
+  onto each class of water bottom, shown in the dashboard's class and reach panels.
+- Not assessed: application on land (land classes, Rbk tabel 1, and the receiving site's land use) and
+  spreading (tabel 3b, 3c). The twin estimates five metals only, so its class can rule a use out but
+  not in; the regulation classifies on all listed substances.
+- The comparison uses limits corrected to the sample's lutum and organic matter, as the Rbk 2022
+  prescribes (bodemtypecorrectie to standaardbodem).
+
 ## Input assumptions for the reaches (researched, now used by the reach component)
 
 Values for the reach and deposit components, from a literature search on 2026-11-19. [S] = read in the

@@ -28,7 +28,7 @@
 | `state.py` | `StateStore` protocol + thread-safe in-memory store; the twin/dashboard boundary | done |
 | `features/` | Sensor-window inputs (only those in `softsensor.features`), same code offline and live; verified against `model_table.csv` | done |
 | `softsensor/` | `SoftSensor` contract, `MetalEstimate` (joint log-normal); Kalman (main), ridge_log and persistence (references); online range recalibration wrapper (on by default); `build_table` | done; evaluated in `analysis/04_soft_sensor_evaluation.py`, extra inputs tested in `analysis/05_model_tuning.py` (no gain) |
-| `quality/` | Soil-type correction, class probabilities, reuse applications | correction and class probabilities done (tests in `tests/test_quality.py`); reuse applications TODO |
+| `quality/` | Soil-type correction, class probabilities, reuse of dredged material in surface water (`reuse.py`) | done (tests in `tests/test_quality.py`) |
 | `monitoring/` | Drift detection (CUSUM default, interval exceedance), evaluation metrics, class evaluation (`ClassComparison`), calibration checks, online Platt recalibration (analysis only) | done; calibration in `analysis/06`-`07` |
 | `sampling/` | Sampling policies (RL track) | fixed-interval done; RL TODO |
 | `dashboard/` | Dash app + pure plotly figure builders | network map with reach details, metal series with reference line, scoreboard, sensors, quality-class panel (current class probabilities and class forecast scores per station), alerts |
@@ -46,7 +46,7 @@
 ## Where to start building
 
 - **Soft sensor:** done (Kalman, see `softsensor/kalman.py` docstring). Lab results are streamed after an assumed turnaround (`softsensor.lab_delay_d`); the twin compares each result with its prediction for the sample time made with only the results known then.
-- **Quality:** `quality/classify.py`: reuse mapping (`reuse_applications`).
+- **Quality:** reuse on land (Rbk tabel 1 land classes) is not assessed; see `quality/reuse.py`.
 - **Representation model:** components in `representation/`; the reach and downstream components cover fluxes, travel time and the Keizersveer / Kampen check.
 - **Dashboard:** network map done; the downstream check's comparisons are not shown yet.
 
