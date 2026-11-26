@@ -164,11 +164,3 @@ def draws_class_probabilities(draws: np.ndarray, corrected: Sequence[pd.DataFram
     same metals: per draw, the worst class."""
     return _shares(_classes_of_draws(draws, corrected).max(axis=1))
 
-
-def reuse_applications(quality_class: str) -> list[str]:
-    """Reuse applications not ruled out by metal content for a given class.
-
-    TODO: fill in from the Regeling bodemkwaliteit / Besluit bodemkwaliteit (e.g. which soil-function
-    classes and large-scale applications each class may be used for). Keep the source reference here.
-    """
-    raise NotImplementedError

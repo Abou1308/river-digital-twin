@@ -146,3 +146,24 @@ def test_sample_class_is_worst_metal():
     # Cd 0.5 is clean, Zn 600 is moderately contaminated (standard soil).
     assert sample_class({"cd": 0.5, "zn": 600.0}, LIMITS, SOIL, 25, 10) == 2
     assert sample_class({"cd": 0.5}, LIMITS, SOIL, 25, 10) == 0
+
+
+def test_reuse_applications_follow_the_receiving_water_bottom():
+    from rdt.quality import QUALITY_CLASSES, reuse_applications
+
+    clean, slight, moderate, heavy = (reuse_applications(c)[0] for c in QUALITY_CLASSES)
+    assert "on any water bottom" in clean
+    assert "slightly contaminated or moderately contaminated" in slight
+    assert "classed moderately contaminated (" in moderate
+    assert heavy.startswith("Not applicable") and "4.1273" in heavy
+    assert all("not assessed" in reuse_applications(c)[-1] for c in QUALITY_CLASSES)
+    with pytest.raises(ValueError, match="Unknown quality class"):
+        reuse_applications("sterk verontreinigd")
+
+
+def test_surface_water_probabilities():
+    from rdt.quality import surface_water_probabilities
+
+    p = surface_water_probabilities({"clean": 0.1, "slightly contaminated": 0.5,
+                                     "moderately contaminated": 0.3, "heavily contaminated": 0.1})
+    assert p == pytest.approx({"clean": 0.1, "slightly contaminated": 0.6, "moderately contaminated": 0.9})

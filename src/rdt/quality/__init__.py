@@ -7,13 +7,14 @@ from rdt.quality.classify import (
     corrected_limits,
     draws_class_probabilities,
     metal_limits,
-    reuse_applications,
     sample_class,
     sample_class_probabilities,
 )
+from rdt.quality.reuse import RECEIVING_WATER_BOTTOMS, reuse_applications, surface_water_probabilities
 
 __all__ = [
     "QUALITY_CLASSES",
+    "RECEIVING_WATER_BOTTOMS",
     "assign_class",
     "class_probabilities",
     "corrected_limits",
@@ -22,4 +23,5 @@ __all__ = [
     "reuse_applications",
     "sample_class",
     "sample_class_probabilities",
+    "surface_water_probabilities",
 ]
