@@ -5,7 +5,7 @@ from __future__ import annotations
 import functools
 import logging
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from datetime import timedelta
 
 import pandas as pd
@@ -42,16 +42,24 @@ log = logging.getLogger(__name__)
 
 
 @dataclass
-class System:
+class TwinSystem:
+    """The twin side: everything except the data source (replay)."""
+
     cfg: Config
     catalog: dict[str, SensorInfo]
     network: RiverNetwork
     limits: pd.DataFrame
     soil_correction: pd.DataFrame
     store: InMemoryStateStore
-    broker: Broker
     soft_sensor: SoftSensor
     twin: DigitalTwin
+
+
+@dataclass
+class System(TwinSystem):
+    """Twin and replay in one process, connected by `broker`."""
+
+    broker: Broker
     replayer: Replayer
 
 
@@ -106,6 +114,21 @@ def build_system(cfg: Config, speed: float | None | str = "config") -> System:
 
     `speed="config"` uses cfg.replay.speed; pass None to replay as fast as possible.
     """
+    broker = make_broker(cfg.broker)
+    side = build_twin(cfg)
+    side.twin.attach(broker)
+    replayer = build_replayer(cfg, side.catalog, broker, speed)
+    return System(**{f.name: getattr(side, f.name) for f in fields(TwinSystem)}, broker=broker, replayer=replayer)
+
+
+def streamed_sensors(cfg: Config, catalog: dict[str, SensorInfo]) -> list[str]:
+    """Sensors whose readings the replay publishes (the tiers in `replay.tiers`)."""
+    return [sid for sid, info in catalog.items() if info.tier in cfg.replay.tiers]
+
+
+def build_twin(cfg: Config) -> TwinSystem:
+    """Fit the soft sensor and components on data before train_end and build the twin (not yet attached
+    to a broker). Reads no data from the replay period except the sensor warm-start week before it."""
     sensors = load_sensors(cfg.data_dir)
     catalog = sensor_catalog(sensors)
     network = RiverNetwork.from_config(cfg, catalog)
@@ -137,21 +160,9 @@ def build_system(cfg: Config, speed: float | None | str = "config") -> System:
     warm = max_window(sc.features) + pd.Timedelta(days=1)
     features.preload(load_readings(cfg.data_dir, start - warm, start, input_ids))
 
-    streamed = [sid for sid, info in catalog.items() if info.tier in cfg.replay.tiers]
-    readings = load_readings(cfg.data_dir, start, cfg.periods.replay_end, streamed)
-    # Lab results are published after the (assumed) lab turnaround; time_utc stays the sample time.
-    # Results whose arrival falls after replay_end are not streamed.
-    is_lab = readings["sensor_id"].map(lambda s: catalog[s].is_lab).astype(bool)
-    readings["available_utc"] = readings["time_utc"] + is_lab.astype(int) * pd.Timedelta(days=sc.lab_delay_d)
-    readings = (readings[readings["available_utc"] < cfg.periods.replay_end]
-                .sort_values("available_utc", kind="stable").reset_index(drop=True))
-    log.info("Loaded %d readings to replay from %d sensors (lab turnaround %.0f d)",
-             len(readings), len(streamed), sc.lab_delay_d)
-
     limits = load_regulatory_limits(cfg.data_dir)
     soil_correction = load_soil_correction(cfg.data_dir)
     store = InMemoryStateStore(history_maxlen=cfg.twin.history_maxlen)
-    broker = make_broker(cfg.broker)
     twin = DigitalTwin(
         network=network,
         catalog=catalog,
@@ -162,23 +173,25 @@ def build_system(cfg: Config, speed: float | None | str = "config") -> System:
         estimate_interval=timedelta(hours=cfg.twin.estimate_interval_h),
         reference=reference,
         class_evaluator=ClassEvaluator(sc.metals, limits, soil_correction, cfg.quality.om_per_corg),
-        components=make_components(cfg, catalog, sensors, streamed, modelled, clean_training_readings(history),
-                                   network, limits, soil_correction),
+        components=make_components(cfg, catalog, sensors, streamed_sensors(cfg, catalog), modelled,
+                                   clean_training_readings(history), network, limits, soil_correction),
     )
-    twin.attach(broker)
+    return TwinSystem(cfg=cfg, catalog=catalog, network=network, limits=limits, soil_correction=soil_correction,
+                      store=store, soft_sensor=soft_sensor, twin=twin)
 
+
+def build_replayer(cfg: Config, catalog: dict[str, SensorInfo], broker: Broker,
+                   speed: float | None | str = "config") -> Replayer:
+    """Replayer for the replay period, publishing to `broker`; `speed` as in `build_system`."""
+    sc = cfg.softsensor
+    readings = load_readings(cfg.data_dir, cfg.periods.replay_start, cfg.periods.replay_end,
+                             streamed_sensors(cfg, catalog))
+    # Lab results are published after the (assumed) lab turnaround; time_utc stays the sample time.
+    # Results whose arrival falls after replay_end are not streamed.
+    is_lab = readings["sensor_id"].map(lambda s: catalog[s].is_lab).astype(bool)
+    readings["available_utc"] = readings["time_utc"] + is_lab.astype(int) * pd.Timedelta(days=sc.lab_delay_d)
+    readings = (readings[readings["available_utc"] < cfg.periods.replay_end]
+                .sort_values("available_utc", kind="stable").reset_index(drop=True))
+    log.info("Loaded %d readings to replay (lab turnaround %.0f d)", len(readings), sc.lab_delay_d)
     clock = SimClock(cfg.periods.replay_start, cfg.replay.speed if speed == "config" else speed)
-    replayer = Replayer(readings, catalog, broker, clock)
-
-    return System(
-        cfg=cfg,
-        catalog=catalog,
-        network=network,
-        limits=limits,
-        soil_correction=soil_correction,
-        store=store,
-        broker=broker,
-        soft_sensor=soft_sensor,
-        twin=twin,
-        replayer=replayer,
-    )
+    return Replayer(readings, catalog, broker, clock)
