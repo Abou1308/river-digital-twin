@@ -150,10 +150,10 @@ def test_a_failing_handler_stops_and_is_reported():
         raise ValueError("bad reading")
 
     broker.subscribe("rws/#", handler)
-    assert not broker.failed
+    assert broker.error is None
     with pytest.raises(ValueError, match="bad reading"):                # propagates into paho's thread
         client.deliver("rws/lobith/turbidity", MSG.to_json())
-    assert broker.failed
+    assert str(broker.error) == "bad reading"
     broker.wait_for_failure()                                            # returns at once
     with pytest.raises(RuntimeError, match="handling stopped: bad reading"):
         broker.wait_for_status("replay", "finished")

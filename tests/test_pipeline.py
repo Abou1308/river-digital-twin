@@ -177,3 +177,16 @@ def test_twin_rejects_readings_back_in_time(cfg, catalog, train_table):
     Replayer(_readings(), catalog, broker, SimClock(START, speed=None)).run()
     with pytest.raises(ValueError, match="restart it to replay again"):
         Replayer(_readings(), catalog, broker, SimClock(START, speed=None)).run()
+
+
+def test_replayer_keeps_the_error_of_a_failing_subscriber(catalog):
+    broker = InMemoryBroker()
+
+    def handler(topic, m):
+        raise ValueError("bad reading")
+
+    broker.subscribe("rws/#", handler)
+    replayer = Replayer(_readings(), catalog, broker, SimClock(START, speed=None))
+    with pytest.raises(ValueError, match="bad reading"):
+        replayer.run()
+    assert replayer.finished.is_set() and str(replayer.error) == "bad reading" and replayer.published == 0

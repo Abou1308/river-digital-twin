@@ -3,9 +3,9 @@ with ``rdt replay`` (two processes connected over MQTT)."""
 
 from __future__ import annotations
 
-import _thread
 import argparse
 import logging
+import os
 import threading
 import time
 
@@ -85,6 +85,9 @@ def _run(args: argparse.Namespace) -> None:
         _print_summary(system)
         return
     system.replayer.start()
+    replayer = system.replayer
+    threading.Thread(target=_exit_on_failure, args=(replayer.finished.wait, lambda: replayer.error),
+                     daemon=True).start()
     _serve_dashboard(system)
 
 
@@ -93,8 +96,11 @@ def _twin(args: argparse.Namespace) -> None:
     from rdt.runtime import build_twin
 
     cfg = load_config(args.config)
-    side = build_twin(cfg)
     broker = _mqtt_broker(cfg, "twin", will=("twin", "offline"))
+    # Overwrites a "ready" left by an earlier twin, so a waiting replay does not publish while this one
+    # is still fitting its models (its readings would be lost).
+    broker.publish_status("twin", "starting")
+    side = build_twin(cfg)
     side.twin.attach(broker)
     broker.publish_status("twin", "ready")
     logging.getLogger(__name__).info("Twin listening on MQTT; waiting for rdt replay")
@@ -103,21 +109,26 @@ def _twin(args: argparse.Namespace) -> None:
             broker.wait_for_status("replay", "finished")
             _print_summary(side)
         else:
-            threading.Thread(target=_stop_on_failure, args=(broker,), daemon=True).start()
+            threading.Thread(target=_exit_on_failure, args=(broker.wait_for_failure, lambda: broker.error),
+                             daemon=True).start()
             _serve_dashboard(side)
-            broker.raise_if_failed()
     finally:
-        if not broker.failed:                 # after a failure the broker's last will reports "offline"
+        # After a failure the network thread is gone and nothing more can be sent; the connection is left
+        # to close when the process exits, which makes the broker publish the last will ("offline").
+        if broker.error is None:
             broker.publish_status("twin", "offline")
-        broker.close()
+            broker.close()
 
 
-def _stop_on_failure(broker) -> None:
-    """Stop the dashboard server (in the main thread) once the twin can no longer handle messages, so the
-    process ends with the error instead of serving a state that has stopped updating."""
-    broker.wait_for_failure()
-    logging.getLogger(__name__).error("The twin stopped handling messages; shutting down the dashboard")
-    _thread.interrupt_main()
+def _exit_on_failure(wait, error) -> None:
+    """Watcher thread: once the twin has failed, end the process with exit code 1. The dashboard server
+    cannot be stopped from another thread, and serving a state that no longer updates would hide the
+    failure. Ending the process also drops the MQTT connection, so the broker publishes the last will."""
+    wait()
+    if (e := error()) is not None:
+        logging.getLogger(__name__).error("The twin stopped handling messages (%s); exiting.", e)
+        logging.shutdown()
+        os._exit(1)
 
 
 def _replay(args: argparse.Namespace) -> None:

@@ -189,8 +189,9 @@ class MqttBroker:
         return seen
 
     @property
-    def failed(self) -> bool:
-        return self._error is not None
+    def error(self) -> Exception | None:
+        """The exception that stopped message handling, if any."""
+        return self._error
 
     def wait_for_failure(self) -> None:
         """Block until a handler has raised."""

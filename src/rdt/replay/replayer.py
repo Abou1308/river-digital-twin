@@ -38,6 +38,7 @@ class Replayer:
         self.stop_event = threading.Event()
         self.published = 0
         self.finished = threading.Event()
+        self.error: Exception | None = None      # set if publishing (i.e. a subscriber) raised
 
     def run(self) -> int:
         """Replay all readings (blocking). Returns the number of messages published."""
@@ -59,9 +60,14 @@ class Replayer:
                 )
                 self.broker.publish(info.topic, msg)
                 self.published += 1
+        except Exception as e:
+            self.error = e
+            log.error("Replay stopped after %d messages: %s", self.published, e)
+            raise
+        else:
+            log.info("Replay finished: %d messages published", self.published)
         finally:
             self.finished.set()
-            log.info("Replay finished: %d messages published", self.published)
         return self.published
 
     def start(self) -> threading.Thread:
