@@ -1,10 +1,12 @@
 # The twin as three containers: the MQTT broker, the twin with its dashboard, and the replay that
 # publishes the 2021-2024 readings. Start with `docker compose up --build`; dashboard on
 # http://127.0.0.1:8050. The replay waits until the twin announces on MQTT that it is listening.
-# RDT_DATA: the dataset's Full folder (default: the one the README describes).
+# RDT_DATA: the dataset's Full folder (default: the one the README describes). config/ is mounted too,
+# so changes to it (e.g. the replay period or speed) apply on the next start without a rebuild.
 
-x-data: &data
+x-volumes: &volumes
   - ${RDT_DATA:-./data/raw/dataset/Full}:/app/data/raw/dataset/Full:ro
+  - ./config:/app/config:ro
 
 services:
   mosquitto:
@@ -22,7 +24,7 @@ services:
     build: .
     image: river-digital-twin
     command: ["twin"]
-    volumes: *data
+    volumes: *volumes
     ports:
       - "127.0.0.1:8050:8050"
     depends_on:
@@ -33,7 +35,7 @@ services:
     build: .                      # same image as the twin (built once, then cached)
     image: river-digital-twin
     command: ["replay"]
-    volumes: *data
+    volumes: *volumes
     depends_on:
       mosquitto:
         condition: service_healthy

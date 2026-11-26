@@ -56,7 +56,9 @@ docker compose run --rm replay replay --speed 604800
 ```
 
 The replay waits until the twin has fitted its models and announced on MQTT that it is listening. A twin
-takes one replay: to replay again, restart the twin first (`docker compose restart twin`).
+takes one replay: to replay again, restart the twin first (`docker compose restart twin`); a twin that
+receives an older reading stops with an error. `config/` is mounted into the containers, so a changed
+replay period or speed in `config/default.yaml` applies on the next start without rebuilding.
 
 ### Two processes over MQTT without Docker for the twin
 
