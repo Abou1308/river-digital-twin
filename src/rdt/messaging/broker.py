@@ -90,11 +90,14 @@ class MqttBroker:
         self._status: dict[str, str] = {}
         self._status_changed = threading.Condition()
         self._connected = threading.Event()
+        self._acked: set[int] = set()                 # message ids of acknowledged subscriptions
+        self._suback = threading.Condition()
         self._connect_error: str | None = None
         self._sent = 0
         self._last = None
         client.on_connect = self._on_connect
         client.on_message = self._on_message
+        client.on_subscribe = self._on_subscribe
         if will is not None:
             client.will_set(STATUS_PREFIX + will[0], will[1], qos=qos, retain=True)
         try:
@@ -118,6 +121,11 @@ class MqttBroker:
                 client.subscribe(pattern, qos=self.qos)
         self._connected.set()
 
+    def _on_subscribe(self, client, userdata, mid, reason_codes, properties) -> None:
+        with self._suback:
+            self._acked.add(mid)
+            self._suback.notify_all()
+
     def _on_message(self, client, userdata, msg) -> None:
         if msg.topic.startswith(STATUS_PREFIX):
             with self._status_changed:
@@ -138,11 +146,20 @@ class MqttBroker:
             self._last.wait_for_publish(self.timeout)
 
     def subscribe(self, pattern: str, handler: Handler) -> None:
+        """Returns once the broker has confirmed the subscription, so messages published from then on
+        (by any client) reach `handler`."""
         with self._lock:
             new = all(p != pattern for p, _ in self._subs)
             self._subs.append((pattern, handler))
-        if new:
-            self._client.subscribe(pattern, qos=self.qos)
+        if not new:
+            return
+        rc, mid = self._client.subscribe(pattern, qos=self.qos)
+        if rc != 0:
+            raise RuntimeError(f"MQTT subscribe to {pattern} failed (paho error code {rc}).")
+        with self._suback:
+            if not self._suback.wait_for(lambda: mid in self._acked, self.timeout):
+                raise TimeoutError(f"MQTT broker did not confirm the subscription to {pattern} "
+                                   f"within {self.timeout:.0f} s.")
 
     def publish_status(self, name: str, value: str, retain: bool = True) -> None:
         """Publish a status; retained by default, so a process that subscribes later still sees it.

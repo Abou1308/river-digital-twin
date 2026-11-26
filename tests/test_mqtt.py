@@ -29,8 +29,10 @@ class FakeInfo:
 class FakeClient:
     """Records calls; `loop_start` answers the connection like a broker would."""
 
-    def __init__(self, accept=True):
-        self.accept = accept
+    on_subscribe = None
+
+    def __init__(self, accept=True, confirm=True):
+        self.accept, self.confirm = accept, confirm
         self.published, self.subscribed, self.will = [], [], None
 
     def will_set(self, topic, payload, qos, retain):
@@ -50,6 +52,10 @@ class FakeClient:
 
     def subscribe(self, pattern, qos):
         self.subscribed.append(pattern)
+        mid = len(self.subscribed)
+        if self.on_subscribe is not None and self.confirm:
+            self.on_subscribe(self, None, mid, [], None)
+        return 0, mid
 
     def publish(self, topic, payload, qos, retain=False):
         self.published.append((topic, payload, retain))
@@ -88,6 +94,12 @@ def test_status_and_resubscribe_on_reconnect():
     client.subscribed.clear()
     client.loop_start()                                                  # reconnect
     assert client.subscribed == [STATUS_PREFIX + "#", "rws/#"]
+
+
+def test_unconfirmed_subscription_is_an_error():
+    broker = MqttBroker(client=FakeClient(confirm=False), connect_timeout_s=0.01)
+    with pytest.raises(TimeoutError, match="did not confirm"):
+        broker.subscribe("rws/#", lambda topic, m: None)
 
 
 def test_refused_connection_is_an_error():
