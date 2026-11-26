@@ -43,6 +43,30 @@ pytest                                # tests
 
 Settings (time split, replay speed, soft-sensor type, stations) are in `config/default.yaml`.
 
+### With Docker (MQTT broker, twin and replay as separate containers)
+
+Requires Docker with Compose and the dataset in place (or `RDT_DATA=/path/to/Full`).
+
+```bash
+docker compose up --build             # Mosquitto + twin + replay; dashboard on http://127.0.0.1:8050
+docker compose run --rm replay replay --speed 604800   # replay again, 1 simulated week per second
+docker compose down                   # stop and remove the containers
+```
+
+The replay waits until the twin has fitted its models and announced on MQTT that it is listening.
+
+### Two processes over MQTT without Docker for the twin
+
+```bash
+pip install -e ".[dev,mqtt]"
+docker compose up -d mosquitto                    # or any MQTT broker on localhost:1883
+rdt --config config/mqtt.yaml twin                # terminal 1: twin + dashboard
+rdt --config config/mqtt.yaml replay              # terminal 2: publishes the readings
+```
+
+`rdt --config config/mqtt.yaml twin --no-dashboard` prints the same summary as `rdt run --no-dashboard`
+once the replay has finished.
+
 ## Project layout
 
 ```
@@ -52,6 +76,7 @@ tests/           pytest suite (synthetic data; real-data checks skip if the data
 analysis/        statistical analysis: 01 correlations, 02 trend test, 03 model comparison,
                  04 soft-sensor evaluation (2021–2024), 05 input tuning on a 2018–2020 validation split
                  (outputs in analysis/results/)
-docs/            architecture notes
+docs/            architecture notes and design decisions
+docker/          Mosquitto config for compose.yaml
 data/raw/        project proposal; dataset goes in data/raw/dataset/ (not in git)
 ```

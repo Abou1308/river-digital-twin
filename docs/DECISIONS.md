@@ -168,6 +168,27 @@ says where it applies, so it can be revisited or reversed.
 - Basemap: Sary's `open-street-map` raster tiles. Map labels use the basemap's own font, as map labels
   can only use fonts the tile server provides.
 
+## MQTT and Docker
+
+- Two programs over MQTT: `rdt replay` (the data source, standing in for the sensors) and `rdt twin`
+  (twin and dashboard in one process). The dashboard stays with the twin because it reads Sary's
+  in-memory `StateStore`; a separate dashboard would need a shared store (changes that interface).
+- MQTT client paho-mqtt (already Sary's optional dependency), broker Mosquitto. Sensor messages at QoS 1
+  (acknowledged); MQTT keeps one publisher's order, which the twin needs. The replay waits for an
+  acknowledgement every 500 messages so it cannot queue the dataset in memory, and Mosquitto's queue per
+  subscriber is unlimited (`docker/mosquitto.conf`): its default drops QoS 1 messages beyond 1000 queued,
+  which would silently lose readings at full speed.
+- Start-up handshake on retained status topics (`rdt/status/twin` = ready / offline, with the broker's
+  last will for a crash); the replay publishes only once the twin is listening, and announces
+  `rdt/status/replay` = finished (not retained, so a later twin does not see an old run's end).
+  `subscribe` returns only after the broker confirms the subscription.
+- Result: two processes through Mosquitto at full speed give the same estimates, lab comparisons, class
+  scores (0.470, 0.132) and alerts (247) as the in-memory run; 95 s instead of 34 s. At the default
+  speed (1 simulated day per second) the replay needs about 340 messages per second.
+- Docker: one image for twin and replay (python:3.14-slim, the version tested), the dataset mounted
+  read-only rather than copied into the image, ports bound to 127.0.0.1. `config/docker.yaml` and
+  `config/mqtt.yaml` contain only the differences, through `extends:` in the config loader.
+
 ## Input assumptions for the reaches (researched, now used by the reach component)
 
 Values for the reach and deposit components, from a literature search on 2026-11-19. [S] = read in the
