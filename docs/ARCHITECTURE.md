@@ -58,7 +58,7 @@ twin are separate programs, as sensors and a twin would be:
 ```
  rdt replay ──MQTT──► Mosquitto ──MQTT──► rdt twin (twin + StateStore + dashboard :8050)
             rws/<station>/...
-            rdt/status/replay = finished        rdt/status/twin = ready | offline (retained)
+            rdt/status/replay = finished        rdt/status/twin = starting | ready | offline (retained)
 ```
 
 The twin announces `ready` once it is subscribed; the replay waits for that before publishing, so no

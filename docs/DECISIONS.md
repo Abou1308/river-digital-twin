@@ -181,7 +181,12 @@ says where it applies, so it can be revisited or reversed.
 - Start-up handshake on retained status topics (`rdt/status/twin` = ready / offline, with the broker's
   last will for a crash); the replay publishes only once the twin is listening, and announces
   `rdt/status/replay` = finished (not retained, so a later twin does not see an old run's end).
-  `subscribe` returns only after the broker confirms the subscription.
+  `subscribe` returns only after the broker confirms the subscription. The twin announces `starting`
+  as soon as it connects, before fitting, so a `ready` left by an earlier twin cannot start a replay early.
+- Failures end the process: the twin refuses a reading older than its current time (e.g. a second replay
+  into the same twin), and if any handler raises, `rdt twin` and `rdt run` exit with code 1 and the
+  error, instead of serving a dashboard that no longer updates; the broker's last will then reports the
+  twin `offline`.
 - Result: two processes through Mosquitto at full speed give the same estimates, lab comparisons, class
   scores (0.470, 0.132) and alerts (247) as the in-memory run; 95 s instead of 34 s. At the default
   speed (1 simulated day per second) the replay needs about 340 messages per second.
