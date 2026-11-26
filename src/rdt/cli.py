@@ -3,8 +3,10 @@ with ``rdt replay`` (two processes connected over MQTT)."""
 
 from __future__ import annotations
 
+import _thread
 import argparse
 import logging
+import threading
 import time
 
 from rdt.config import load_config
@@ -101,10 +103,21 @@ def _twin(args: argparse.Namespace) -> None:
             broker.wait_for_status("replay", "finished")
             _print_summary(side)
         else:
+            threading.Thread(target=_stop_on_failure, args=(broker,), daemon=True).start()
             _serve_dashboard(side)
+            broker.raise_if_failed()
     finally:
-        broker.publish_status("twin", "offline")
+        if not broker.failed:                 # after a failure the broker's last will reports "offline"
+            broker.publish_status("twin", "offline")
         broker.close()
+
+
+def _stop_on_failure(broker) -> None:
+    """Stop the dashboard server (in the main thread) once the twin can no longer handle messages, so the
+    process ends with the error instead of serving a state that has stopped updating."""
+    broker.wait_for_failure()
+    logging.getLogger(__name__).error("The twin stopped handling messages; shutting down the dashboard")
+    _thread.interrupt_main()
 
 
 def _replay(args: argparse.Namespace) -> None:

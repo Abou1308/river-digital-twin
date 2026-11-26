@@ -74,6 +74,10 @@ class MqttBroker:
     (`publish_status`, `wait_for_status`): the twin announces that it is listening before the replay
     starts publishing, and the replay announces that it has finished. `will` is a status (name, value)
     the broker publishes if this client disconnects without closing, e.g. ("twin", "offline").
+
+    If a handler raises, paho's network thread stops, so no further message is handled. The error is
+    kept: `wait_for_status` and `raise_if_failed` raise it, and `wait_for_failure` returns, so the
+    process can stop instead of carrying on with a state that no longer updates.
     """
 
     def __init__(self, host: str = "localhost", port: int = 1883, qos: int = 1, connect_timeout_s: float = 10.0,
@@ -93,6 +97,7 @@ class MqttBroker:
         self._acked: set[int] = set()                 # message ids of acknowledged subscriptions
         self._suback = threading.Condition()
         self._connect_error: str | None = None
+        self._error: Exception | None = None          # first exception raised by a handler
         self._sent = 0
         self._last = None
         client.on_connect = self._on_connect
@@ -135,9 +140,15 @@ class MqttBroker:
         message = SensorMessage.from_json(msg.payload)
         with self._lock:
             subs = list(self._subs)
-        for pattern, handler in subs:
-            if topic_matches(pattern, msg.topic):
-                handler(msg.topic, message)
+        try:
+            for pattern, handler in subs:
+                if topic_matches(pattern, msg.topic):
+                    handler(msg.topic, message)
+        except Exception as e:
+            with self._status_changed:
+                self._error = e
+                self._status_changed.notify_all()
+            raise
 
     def publish(self, topic: str, message: SensorMessage) -> None:
         self._last = self._send(topic, message.to_json())
@@ -169,9 +180,26 @@ class MqttBroker:
         self._send(STATUS_PREFIX + name, value, retain=retain).wait_for_publish(self.timeout)
 
     def wait_for_status(self, name: str, value: str, timeout_s: float | None = None) -> bool:
-        """Block until status `name` equals `value`; False if `timeout_s` passes first."""
+        """Block until status `name` equals `value`; False if `timeout_s` passes first. Raises if
+        message handling has stopped (see the class docstring)."""
         with self._status_changed:
-            return self._status_changed.wait_for(lambda: self._status.get(name) == value, timeout_s)
+            seen = self._status_changed.wait_for(
+                lambda: self._status.get(name) == value or self._error is not None, timeout_s)
+        self.raise_if_failed()
+        return seen
+
+    @property
+    def failed(self) -> bool:
+        return self._error is not None
+
+    def wait_for_failure(self) -> None:
+        """Block until a handler has raised."""
+        with self._status_changed:
+            self._status_changed.wait_for(lambda: self._error is not None)
+
+    def raise_if_failed(self) -> None:
+        if self._error is not None:
+            raise RuntimeError(f"MQTT message handling stopped: {self._error}") from self._error
 
     def close(self) -> None:
         if self._last is not None:

@@ -140,3 +140,22 @@ def test_round_trip_through_a_real_broker():
     sender.publish_status(name, "")                                      # clear the retained status
     for b in (receiver, sender, late):
         b.close()
+
+
+def test_a_failing_handler_stops_and_is_reported():
+    client = FakeClient()
+    broker = MqttBroker(client=client)
+
+    def handler(topic, m):
+        raise ValueError("bad reading")
+
+    broker.subscribe("rws/#", handler)
+    assert not broker.failed
+    with pytest.raises(ValueError, match="bad reading"):                # propagates into paho's thread
+        client.deliver("rws/lobith/turbidity", MSG.to_json())
+    assert broker.failed
+    broker.wait_for_failure()                                            # returns at once
+    with pytest.raises(RuntimeError, match="handling stopped: bad reading"):
+        broker.wait_for_status("replay", "finished")
+    with pytest.raises(RuntimeError, match="handling stopped"):
+        broker.raise_if_failed()
