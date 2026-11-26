@@ -7,7 +7,7 @@ prediction, the sensor part (B x: discharge, turbidity, season) and the level's 
 average over the previous ~26 results. A negative slope means that part overshoots.
 
 Part 2 compares the options, each without tuning on the evaluation period:
-  baseline                 Sary's Kalman soft sensor as configured
+  baseline                 Sary's Kalman soft sensor, without range recalibration
   range recalibration      ranges re-estimated from the lab results so far (softsensor/recalibration.py)
   one-step level noise     the level drift Q rescaled to minimise training one-step-ahead error
                            (softsensor/kalman.py, noise_fit="one_step"): fixes the cause, on training
@@ -41,10 +41,11 @@ LEVELS = (0.5, 0.8, 0.9, 0.95)
 PRIOR_N = 20
 SLOW_WINDOW = 26                       # results in the level's own running average (~6 months at Eijsden)
 PERIODS = {"2021-2024": "2025-01-01", "2021-2025": "2026-01-01"}
+# Every option is set explicitly, so the rows do not change with the config's defaults.
 REPLAYS = {                            # name: softsensor overrides
-    "baseline": {},
-    "range recalibration": {"recalibrate_prior_n": PRIOR_N},
-    "one-step level noise": {"kalman_noise_fit": "one_step"},
+    "baseline": {"recalibrate_prior_n": None, "kalman_noise_fit": "variogram"},
+    "range recalibration": {"recalibrate_prior_n": PRIOR_N, "kalman_noise_fit": "variogram"},
+    "one-step level noise": {"recalibrate_prior_n": None, "kalman_noise_fit": "one_step"},
 }
 
 
