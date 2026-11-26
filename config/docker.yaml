@@ -1,0 +1,10 @@
+# Inside docker compose (compose.yaml): the broker is the "mosquitto" service, and the dashboard listens
+# on all interfaces so the published port reaches it. Only the differences from mqtt.yaml.
+extends: mqtt.yaml
+
+broker:
+  mqtt:
+    host: mosquitto
+
+dashboard:
+  host: 0.0.0.0
